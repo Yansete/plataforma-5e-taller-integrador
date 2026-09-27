@@ -1,0 +1,27 @@
+# Dependencias y compilaciones
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+
+# Registros y temporales
+*.log
+npm-debug.log*
+.vite/
+coverage/
+
+# Entorno local (nunca subir claves)
+.env
+.env.*
+!.env.example
+
+# Editores y sistema operativo
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos temporales de Office (se crean al abrir los documentos)
+~$*
