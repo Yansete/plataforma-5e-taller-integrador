@@ -132,9 +132,46 @@ export function ConfiguracionPage() {
               </div>
             </fieldset>
 
+            {/* =========================================================
+                NUEVOS CAMPOS: MULTIMODALIDAD Y CONTEXTO (Ref: HU-024)
+                ========================================================= */}
+            <div className="form-grid" style={{ marginTop: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 600, color: '#1A211E' }}>Público objetivo / Ciclo</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej. Estudiantes de 3er ciclo de Ingeniería" 
+                  disabled={busy} 
+                  style={{ padding: '8px 12px', border: '1px solid #DCD7CC', borderRadius: '8px', fontSize: '14px', width: '100%' }} 
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 600, color: '#1A211E' }}>Competencia a desarrollar</label>
+                <select disabled={busy} style={{ padding: '8px 12px', border: '1px solid #DCD7CC', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', width: '100%' }}>
+                  <option>Pensamiento crítico</option>
+                  <option>Pensamiento innovador</option>
+                  <option>Resolución de problemas</option>
+                  <option>Trabajo en equipo</option>
+                </select>
+              </div>
+            </div>
+
+            <fieldset className="fieldset" style={{ marginBottom: 'var(--space-2)' }}>
+              <legend className="fieldset__legend" style={{ color: '#1A211E', marginBottom: '8px' }}>Enfoque Multimodal</legend>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                {['Textual', 'Gamificado', 'Multimedia', 'Kinestésico'].map(tipo => (
+                  <label key={tipo} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', border: '1px solid #DCD7CC', borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer' }}>
+                    <input type="checkbox" defaultChecked={tipo === 'Textual'} disabled={busy} style={{ accentColor: '#1F5C4A', width: '16px', height: '16px' }} />
+                    <span style={{ fontSize: '14px', color: '#1A211E' }}>{tipo}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {/* ========================================================= */}
+
             <div className="form-grid">
               <SelectField
-                label="Tipo de recurso"
+                label="Formato base de generación (Simulación)"
                 value={form.resourceType}
                 onChange={(v) => update('resourceType', v as ResourceType)}
                 options={typesForStage.map((t) => ({ value: t.id, label: `${t.name} (${t.story})` }))}
