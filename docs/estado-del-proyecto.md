@@ -97,6 +97,7 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
 | Spike | Resultado | Estado |
 |---|---|---|
 | SP-001 · Modelos de embeddings (05/10/2026) | Propuesta: `multilingual-e5-base` local, vectores de 768 dimensiones. Detalle en `docs/spikes/SP-001-modelos-embeddings.md`; experimento en `spikes/sp-001-embeddings/` | Medidos 3 modelos locales y 2 de Gemini (OpenAI sin saldo). Falta la prueba con material real. No aprobado por el equipo |
+| SP-002 · Modelos de generación por tipo de recurso (05/10/2026) | Propuesta: Claude Sonnet 5.5 para todo lo textual/JSON (textual, ítems, gamificado, diagramas Mermaid, H5P); Gemini 3.1 Flash Image solo para imágenes opcionales; Gemini 3.8 Flash como alternativa. Unos USD 0,03-0,05 por recurso; detalle en `docs/spikes/SP-002-modelos-por-tipo-de-recurso.md` | Costos **estimados** (sin llamadas reales); falta la evaluación de calidad con docentes. No aprobado por el equipo |
 
 ## Próximos pasos sugeridos
 
