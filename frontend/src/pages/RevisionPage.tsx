@@ -197,6 +197,8 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
   const outcome = catalogService.getOutcome(resource.outcomeId);
   const blockers = approvalBlockers(resource);
   const isPending = resource.status === 'pendiente';
+  const isAprobado = resource.status === 'aprobado';
+  const isDescartado = resource.status === 'descartado';
   const isItem = resource.type === 'item_opcion_multiple';
 
   useEffect(() => {
@@ -225,15 +227,24 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
 
   const allFragmentIds = [...new Set(resource.citations.flatMap((c) => c.fragmentIds))];
 
+  // Aplicación del Sistema de Diseño (HU-025) a la tarjeta principal
+  let borderColor = '#DCD7CC';
+  if (isAprobado) borderColor = '#1F5C4A'; // Verde de marca
+  else if (isDescartado) borderColor = '#A84A26'; // Rojo terracota
+
   return (
     <div className="split split--review">
-      <Card as="article" aria-labelledby="recurso-titulo">
+      <Card as="article" aria-labelledby="recurso-titulo" style={{ 
+        border: `2px solid ${borderColor}`, 
+        opacity: isDescartado ? 0.7 : 1, 
+        transition: 'all 0.3s ease' 
+      }}>
         <div className="card__header">
           <div>
-            <span className="overline">
+            <span className="overline" style={{ color: '#4A544F', fontWeight: 600 }}>
               {unitShortLabel(resource.unitId)} · {stageName(resource.stage)} · {resourceTypeName(resource.type)}
             </span>
-            <h2 className="title" id="recurso-titulo">
+            <h2 className="title" id="recurso-titulo" style={{ fontFamily: '"Fraunces", serif', color: '#1A211E' }}>
               {resource.title}
             </h2>
             {outcome && (
@@ -269,11 +280,11 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
         ) : (
           <div className="stack">
             {isItem ? (
-              <p className="h2">{resource.body}</p>
+              <p className="h2" style={{ fontFamily: '"Fraunces", serif', fontSize: '19px', color: '#1A211E' }}>{resource.body}</p>
             ) : (
               <div className="prose">
                 {resource.body.split('\n\n').map((p, i) => (
-                  <p key={i} style={{ whiteSpace: 'pre-line' }}>
+                  <p key={i} style={{ whiteSpace: 'pre-line', color: '#1A211E' }}>
                     {p}
                   </p>
                 ))}
@@ -341,6 +352,7 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
                       }
                       run(() => reviewService.approveResource(resource.id), 'Recurso aprobado. Ya está disponible para exportar.');
                     }}
+                    style={{ backgroundColor: '#1F5C4A', color: 'white' }}
                   >
                     Aprobar recurso
                   </Button>
@@ -354,6 +366,7 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
                       setReason('');
                       setDiscardTarget({ kind: 'resource' });
                     }}
+                    style={{ color: '#A84A26', borderColor: '#A84A26' }}
                   >
                     Descartar recurso
                   </Button>
@@ -390,10 +403,10 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
               </div>
             )}
             {resource.citations.map((c, i) => (
-              <div key={i} className="stack stack--tight">
+              <div key={i} className="stack stack--tight" style={{ backgroundColor: '#F6F4EF', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #4A544F' }}>
                 <span className="cluster text-ui">
                   <Icon name="quote" size={16} />
-                  <strong>{c.claim}</strong>
+                  <strong style={{ color: '#1A211E' }}>{c.claim}</strong>
                 </span>
                 {c.fragmentIds.map((f) => (
                   <FragmentCard key={f} fragmentId={f} highlight={highlight.includes(f)} />
@@ -401,7 +414,7 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
               </div>
             ))}
             {highlight.filter((f) => !allFragmentIds.includes(f)).map((f) => (
-              <div key={f} className="stack stack--tight">
+              <div key={f} className="stack stack--tight" style={{ backgroundColor: '#F6F4EF', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #1F5C4A' }}>
                 <span className="caption">Fragmento de origen de la alternativa:</span>
                 <FragmentCard fragmentId={f} highlight />
               </div>
@@ -456,21 +469,33 @@ function OptionCard({ option, letter, editable, highlighted, onShowEvidence, onA
   const [text, setText] = useState(option.text);
   const [feedback, setFeedback] = useState(option.feedback);
   const locations = catalogService.getFragments(option.sourceFragmentIds).map((f) => f.location).join(', ');
+  
   const className = ['card card--inner stack stack--tight option', option.isCorrect && 'option--key', option.decision === 'descartado' && 'option--discarded', highlighted && 'option--highlight']
     .filter(Boolean)
     .join(' ');
 
+  // Aplicación del Sistema de Diseño a las Alternativas
+  let bgColor = '#FFFFFF';
+  let borderColor = '#DCD7CC';
+  if (option.isCorrect) {
+    bgColor = '#DCEBE3'; // Verde suave
+    borderColor = '#1F5C4A';
+  } else if (option.decision === 'descartado') {
+    bgColor = '#F6F4EF';
+    borderColor = '#A84A26';
+  }
+
   return (
-    <li className={className}>
+    <li className={className} style={{ backgroundColor: bgColor, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '8px', marginBottom: '8px' }}>
       <div className="cluster" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <span className="cluster" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', minWidth: 0 }}>
-          <span className="option__letter" aria-hidden="true">
+          <span className="option__letter" aria-hidden="true" style={{ fontWeight: 600, color: option.isCorrect ? '#1F5C4A' : '#1A211E' }}>
             {letter}
           </span>
           <span className="stack stack--tight" style={{ minWidth: 0 }}>
             <span className="visually-hidden">{`Alternativa ${letter}: `}</span>
-            <span className={option.decision === 'descartado' ? 'text-ui option__text--discarded' : 'text-ui'}>{option.text}</span>
-            <span className="caption">{option.feedback}</span>
+            <span className={option.decision === 'descartado' ? 'text-ui option__text--discarded' : 'text-ui'} style={{ color: '#1A211E', fontSize: '15px' }}>{option.text}</span>
+            <span className="caption" style={{ color: '#4A544F' }}>{option.feedback}</span>
           </span>
         </span>
         {option.isCorrect ? (
