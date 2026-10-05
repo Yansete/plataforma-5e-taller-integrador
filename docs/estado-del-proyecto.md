@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-**Última actualización:** 26/09/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
+**Última actualización:** 05/10/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
 
 ## Resumen
 
@@ -77,6 +77,12 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
 - El menú móvil cierra con Esc o con el fondo, pero no retiene el foco dentro del panel mientras está abierto.
 - Las fuentes se cargan desde Google Fonts; sin conexión se usan Georgia y Segoe UI.
 - El número de alternativas (3 o 5) aparece deshabilitado porque los ejemplos tienen 4.
+
+## Investigaciones (spikes)
+
+| Spike | Resultado | Estado |
+|---|---|---|
+| SP-001 · Modelos de embeddings (05/10/2026) | Propuesta: `multilingual-e5-base` local, vectores de 768 dimensiones. Detalle en `docs/spikes/SP-001-modelos-embeddings.md`; experimento en `spikes/sp-001-embeddings/` | Medidos 3 modelos locales y 2 de Gemini (OpenAI sin saldo). Falta la prueba con material real. No aprobado por el equipo |
 
 ## Próximos pasos sugeridos
 
