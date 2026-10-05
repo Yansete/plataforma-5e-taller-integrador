@@ -18,6 +18,19 @@ Estados posibles de cada decisión:
 | T5 | CSS global con variables en `tokens.css` + clases en `base.css` | El sistema de diseño exige «un único archivo de estilos compartido» y componentes implementados una sola vez | Tomada |
 | T6 | Fuentes desde Google Fonts con respaldo Georgia / Segoe UI | Indicado en el sistema de diseño (sección 7) | Tomada |
 
+### 1.1 Base de datos (EN-011, 05/10/2026)
+
+| # | Decisión | Motivo | Estado |
+|---|---|---|---|
+| B1 | PostgreSQL 17 + pgvector 0.8.1 (imagen `pgvector/pgvector:0.8.1-pg17`) | Previsto en el Project Charter; una sola base para datos relacionales y vectores. 0.8 aporta *iterative scan* para top-k con filtros | Propuesta |
+| B2 | Migraciones con dbmate (contenedor Docker), SQL puro con `migrate:up` / `migrate:down` | El lenguaje del backend no está decidido (EN-001); dbmate no depende de él ni exige instalar nada | Propuesta (confirmada por el usuario) |
+| B3 | `embedding vector(768)` nullable + `modelo_embedding` (ambos nulos o ambos presentes) | Dimensión de SP-001; la ingesta guarda el texto antes de vectorizar (EN-013); el modelo permite reindexar | Propuesta |
+| B4 | Índice HNSW con `vector_cosine_ops`, `m = 16`, `ef_construction = 64` | Coseno para embeddings normalizados; HNSW no necesita datos previos como IVFFlat; valores por defecto de pgvector hasta medir con datos reales | Propuesta |
+| B5 | `unidad_id` y `curso_id` repetidos en `fragmento`, con índice en `unidad_id` | Filtrar por unidad (HU-013) sin JOIN | Propuesta |
+| B6 | `texto_tsv` generado con `to_tsvector('spanish', texto)` + índice GIN | Base para la búsqueda híbrida (HU-012). Sin `unaccent` por ahora (exige función IMMUTABLE propia) | Propuesta |
+| B7 | Esquema base mínimo (`curso`, `unidad`, `documento`) en la migración 0001 | EN-002 no existe en el repositorio; se ajustará con migraciones nuevas | Provisional |
+| B8 | La verificación se ejecuta en una base temporal (`db/verificacion/verificar.sh`) | Repetirla sobre la misma base infla el índice HNSW con entradas muertas | Tomada |
+
 ## 2. Arquitectura del frontend
 
 | # | Decisión | Motivo | Estado |

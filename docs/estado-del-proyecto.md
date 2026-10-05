@@ -20,6 +20,7 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
 | 5. Exportación | Solo lista recursos aprobados, selección persistente, 5 formatos, compatibilidad QTI/ítems, flujo de 5 pasos con pendientes explícitos, historial, resumen JSON **no importable** | HU-018, HU-019 (solo interfaz) |
 | 6. Indicadores | 10 indicadores de HU-021 o los 23, filtros por unidad y periodo, vista de tarjetas o tabla, origen de cada valor, registro de decisiones | HU-021 (parcial) |
 | Persistencia | Estado, decisiones y preferencias en `localStorage` (solo metadatos); restablecer demo | — |
+| Base vectorial local (05/10/2026) | PostgreSQL 17 + pgvector 0.8.1 en Docker; migraciones con dbmate; tabla `fragmento` con `embedding vector(768)`, índice HNSW coseno, índice por unidad y GIN `spanish`; script de verificación | EN-011. El frontend aún no la usa |
 | Pruebas | 15 pruebas de servicios (vitest) | — |
 
 ## Simulado (parece funcionar, pero no hay procesamiento real)
@@ -41,7 +42,9 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
 
 ## Pendiente (fuera del alcance actual)
 
-- Backend, API REST, base de datos relacional y vectorial (EN-001, EN-002, TA-001).
+- Backend y API REST (EN-001, TA-001). Modelo de datos definitivo (EN-002): la migración 0001 es un esquema base
+  **provisional** creado para EN-011, que deberá ajustarse con migraciones nuevas cuando EN-002 se apruebe.
+- Vectorización real de los fragmentos (EN-013): las columnas `embedding` y `modelo_embedding` existen pero están vacías.
 - Contratos JSON de generación (EN-003): los tipos actuales son una propuesta.
 - Ingesta real, segmentación, vectorización y recuperación híbrida (HU-002 a HU-005).
 - Generación anclada, verificación de anclaje y rechazo real (HU-006, HU-007), etapas 5E (HU-008 a HU-017).
@@ -62,6 +65,17 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
   1280, 820 y 375 px; primer Tab en «Saltar al contenido»; sin errores de consola.
 - Revisión visual de capturas a 1280 y 375 px.
 - Contraste de la paleta calculado con la fórmula WCAG 2.1 (ver `decisiones-tecnicas.md`).
+
+## Verificaciones de EN-011 (05/10/2026)
+
+- `dbmate up` aplica 0001 y 0002; `dbmate rollback` revierte 0002 (elimina la tabla y la extensión) y se vuelve a aplicar.
+- `./db/verificacion/verificar.sh`: superada en 7 de 7 ejecuciones sobre una base temporal (4.005 fragmentos de prueba).
+  Comprueba la extensión, la consulta top-k filtrada por unidad, el uso de `fragmento_embedding_hnsw` en el `EXPLAIN`
+  y la búsqueda por palabras con el índice GIN.
+- El recall@10 del índice HNSW frente a la búsqueda exacta con vectores **aleatorios** varió entre 6/10 y 10/10; con
+  embeddings reales debe medirse en EN-013.
+- Hallazgo: ejecutar la verificación muchas veces sobre la misma base acumula entradas muertas en el índice HNSW (141 MB
+  con la tabla vacía) y el planificador deja de usarlo hasta un `REINDEX`. Por eso la verificación usa una base temporal.
 
 ## No verificado
 

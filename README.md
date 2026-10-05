@@ -4,8 +4,9 @@ Proyecto del curso **Taller Integrador 1** (UPAO, 2026-II). Plataforma que, a pa
 recursos para una secuencia didáctica del modelo **5E**, con **revisión docente obligatoria**, **trazabilidad a la
 evidencia de origen** y exportación futura a estándares (QTI, SCORM, IMS Common Cartridge).
 
-> **Estado actual:** solo existe el **frontend** con datos de demostración y servicios **simulados**.
-> No hay backend, IA, procesamiento real de documentos ni integración con LMS. Ver
+> **Estado actual:** existe el **frontend** con datos de demostración y servicios **simulados**, y una **base de datos
+> local** (PostgreSQL + pgvector) preparada para los fragmentos. No hay backend, IA, procesamiento real de documentos
+> ni integración con LMS. Ver
 > [docs/estado-del-proyecto.md](docs/estado-del-proyecto.md).
 
 ## Requisitos
@@ -60,12 +61,26 @@ Otros comandos (dentro de `frontend/`):
 Prueba también con la ventana estrecha (o las herramientas de desarrollo del navegador en modo móvil): la barra lateral
 se convierte en un menú.
 
+## Base de datos local (PostgreSQL + pgvector)
+
+Requiere **Docker Desktop** abierto. Desde la raíz del repositorio:
+
+```bash
+cp .env.example .env
+docker compose up -d --wait db        # PostgreSQL 17 con pgvector
+docker compose run --rm dbmate up     # aplica las migraciones
+./db/verificacion/verificar.sh        # comprueba la extensión y los índices (EN-011)
+```
+
+Detalles, comandos y estructura de las migraciones en [db/README.md](db/README.md).
+
 ## Estructura
 
 ```
 taller-integrador/
 ├── documentos/            Documentos del curso (solo lectura)
-├── docs/                  Documentación de continuidad
+├── db/                    Base de datos local: migraciones (dbmate), esquema y verificación
+├── docs/                  Documentación de continuidad (incluye docs/spikes/)
 ├── frontend/              Aplicación React + TypeScript + Vite
 │   └── src/
 │       ├── components/    Componentes reutilizables (sistema de diseño)
@@ -76,6 +91,9 @@ taller-integrador/
 │       ├── types/         Modelos de datos
 │       ├── styles/        tokens.css (variables) y base.css
 │       └── utils/         Formato de fechas y números
+├── spikes/                Experimentos aislados (no son código de producción)
+├── docker-compose.yml     PostgreSQL + pgvector y dbmate
+├── .env.example           Variables de entorno locales (copiar como .env)
 ├── CLAUDE.md              Contexto técnico para retomar el trabajo
 └── README.md
 ```

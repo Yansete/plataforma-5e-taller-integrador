@@ -14,7 +14,10 @@
 
 ## Alcance actual
 
-- **Solo frontend** (React 18 + TypeScript + Vite 5 + React Router 6). Sin backend, base de datos, autenticación real ni IA.
+- **Frontend** (React 18 + TypeScript + Vite 5 + React Router 6) y **base de datos local** (PostgreSQL 17 + pgvector,
+  migraciones con dbmate en `db/`). Sin backend, autenticación real ni IA; el frontend no se conecta a la base.
+- La migración `20261005000001_esquema_base.sql` es un sustituto **provisional** de EN-002. Nunca editar migraciones
+  aplicadas: crear otra con `docker compose run --rm dbmate new <nombre>`.
 - Servicios **simulados** en `frontend/src/services/`. No pedir claves de API para funciones simuladas.
 - No presentar lo simulado como completado: procesamiento, generación, validación QTI e importación LMS son **pendientes**.
 - No inventar aprobaciones del asesor, validaciones con docentes ni resultados de pruebas.
@@ -28,6 +31,15 @@ npm run build      # tsc + build de producción (debe pasar sin errores)
 npm run typecheck  # solo tipos
 npm test           # pruebas de servicios (vitest, entorno node)
 npm run preview    # sirve dist/ en http://localhost:4173
+```
+
+Base de datos (desde la raíz, con Docker Desktop abierto; detalles en `db/README.md`):
+
+```bash
+cp .env.example .env                  # solo la primera vez
+docker compose up -d --wait db        # PostgreSQL + pgvector
+docker compose run --rm dbmate up     # aplica migraciones y regenera db/schema.sql
+./db/verificacion/verificar.sh        # verificación EN-011 en una base temporal (debe terminar en SUPERADA)
 ```
 
 ## Arquitectura y convenciones
