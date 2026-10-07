@@ -1,4 +1,4 @@
-# CLAUDE.md — Contexto técnico para retomar el trabajo
+# CONTEXTO.md — Contexto técnico para retomar el trabajo
 
 ## Al empezar una sesión
 
