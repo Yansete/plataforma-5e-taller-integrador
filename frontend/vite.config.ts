@@ -8,5 +8,14 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // TA-008 · Cobertura (caja blanca) de la lógica del cliente: servicios, almacén y utilidades.
+    // `npm run test:cobertura` falla si baja de los umbrales. El reporte HTML queda en coverage/.
+    coverage: {
+      provider: 'v8',
+      include: ['src/services/**', 'src/store/**', 'src/utils/**'],
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: 'coverage',
+      thresholds: { lines: 80, statements: 80, functions: 80, branches: 70 },
+    },
   },
 });
