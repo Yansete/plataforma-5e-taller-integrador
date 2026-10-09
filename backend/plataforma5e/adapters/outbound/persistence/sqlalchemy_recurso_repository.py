@@ -8,7 +8,9 @@ from plataforma5e.adapters.outbound.persistence.orm_models import RecursoORM, Al
 
 class SQLAlchemyRecursoRepository(RecursoRepositoryPort):
     def __init__(self):
-        Base.metadata.create_all(bind=engine)
+        # Asegurar que las tablas existan con el engine activo
+        RecursoORM.__table__.create(bind=engine, checkfirst=True)
+        AlternativaORM.__table__.create(bind=engine, checkfirst=True)
 
     def _mapear_a_dominio(self, orm: RecursoORM) -> RecursoDominio:
         return RecursoDominio(
