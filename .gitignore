@@ -36,3 +36,8 @@ backend/.venv/
 __pycache__/
 .pytest_cache/
 *.egg-info/
+
+# Cobertura (TA-008)
+frontend/coverage/
+backend/.coverage
+backend/htmlcov/
