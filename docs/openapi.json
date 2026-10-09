@@ -1,0 +1,316 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plataforma 5E - Backend Hexagonal",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/salud": {
+      "get": {
+        "summary": "Salud",
+        "operationId": "salud_salud_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recursos/generar": {
+      "post": {
+        "summary": "Generar Recursos",
+        "operationId": "generar_recursos_api_v1_recursos_generar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recursos/{recurso_id}": {
+      "get": {
+        "summary": "Obtener Recurso",
+        "operationId": "obtener_recurso_api_v1_recursos__recurso_id__get",
+        "parameters": [
+          {
+            "name": "recurso_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recurso Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recursos/{recurso_id}/alternativas/{letra}/decision": {
+      "post": {
+        "summary": "Tomar Decision",
+        "operationId": "tomar_decision_api_v1_recursos__recurso_id__alternativas__letra__decision_post",
+        "parameters": [
+          {
+            "name": "recurso_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recurso Id"
+            }
+          },
+          {
+            "name": "letra",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Letra"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recursos/{recurso_id}/aprobar": {
+      "post": {
+        "summary": "Aprobar Recurso",
+        "operationId": "aprobar_recurso_api_v1_recursos__recurso_id__aprobar_post",
+        "parameters": [
+          {
+            "name": "recurso_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recurso Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exportaciones": {
+      "post": {
+        "summary": "Exportar Recursos",
+        "operationId": "exportar_recursos_api_v1_exportaciones_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportacionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "texto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Texto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "DecisionRequest"
+      },
+      "ExportacionRequest": {
+        "properties": {
+          "formato": {
+            "type": "string",
+            "title": "Formato"
+          }
+        },
+        "type": "object",
+        "required": [
+          "formato"
+        ],
+        "title": "ExportacionRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
