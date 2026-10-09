@@ -25,3 +25,14 @@ desktop.ini
 
 # Archivos temporales de Office (se crean al abrir los documentos)
 ~$*
+
+# Pruebas (TA-001)
+frontend/test-results/
+frontend/playwright-report/
+backend/reportes/
+backend/salida_demo/
+backend/*.db
+backend/.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
