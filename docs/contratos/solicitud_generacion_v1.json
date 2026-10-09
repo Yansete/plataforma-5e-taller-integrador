@@ -1,0 +1,104 @@
+{
+  "description": "Especificación de entrada para el servicio de generación de secuencias didácticas.",
+  "properties": {
+    "unidad_id": {
+      "description": "Identificador de la unidad académica curricular (ej. u2).",
+      "title": "Unidad Id",
+      "type": "string"
+    },
+    "resultado_aprendizaje_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Código del resultado de aprendizaje específico a cubrir (ej. ra-2-1).",
+      "title": "Resultado Aprendizaje Id"
+    },
+    "etapa_5e": {
+      "description": "Etapa instruccional del modelo pedagógico 5E solicitada.",
+      "enum": [
+        "engage",
+        "explore",
+        "explain",
+        "elaborate",
+        "evaluate"
+      ],
+      "title": "Etapa 5E",
+      "type": "string"
+    },
+    "tipo_recurso": {
+      "description": "Subtipo de recurso didáctico a producir (ej. item_opcion_multiple, pregunta_detonante).",
+      "title": "Tipo Recurso",
+      "type": "string"
+    },
+    "cantidad": {
+      "default": 1,
+      "description": "Número de variantes o instancias de recursos a generar.",
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Cantidad",
+      "type": "integer"
+    },
+    "dificultad": {
+      "default": "intermedia",
+      "description": "Nivel de complejidad cognitiva estimada para el recurso.",
+      "enum": [
+        "basica",
+        "intermedia",
+        "avanzada"
+      ],
+      "title": "Dificultad",
+      "type": "string"
+    },
+    "alternativas": {
+      "default": 4,
+      "description": "Cantidad de opciones de respuesta a generar en recursos de evaluación.",
+      "maximum": 5,
+      "minimum": 3,
+      "title": "Alternativas",
+      "type": "integer"
+    },
+    "top_k": {
+      "default": 10,
+      "description": "Cantidad máxima de fragmentos contextuales a recuperar de la base vectorial.",
+      "maximum": 20,
+      "minimum": 1,
+      "title": "Top K",
+      "type": "integer"
+    },
+    "umbral_evidencia": {
+      "default": 0.6,
+      "description": "Umbral mínimo de similitud semántica requerido para admitir un fragmento.",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Umbral Evidencia",
+      "type": "number"
+    },
+    "indicaciones": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "",
+      "description": "Instrucciones docentes complementarias para guiar el enfoque pedagógico.",
+      "title": "Indicaciones"
+    }
+  },
+  "required": [
+    "unidad_id",
+    "etapa_5e",
+    "tipo_recurso"
+  ],
+  "title": "GenerationRequestModel",
+  "type": "object"
+}

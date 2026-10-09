@@ -1,0 +1,101 @@
+"""Punto de composición de la aplicación FastAPI (Bootstrap)."""
+from __future__ import annotations
+
+from typing import Any, Dict, List
+from fastapi import FastAPI, Response
+from pydantic import BaseModel
+
+from plataforma5e.adapters.outbound.persistence.sqlalchemy_recurso_repository import SQLAlchemyRecursoRepository
+from plataforma5e.application.services.recurso_service import RecursoService
+from plataforma5e.adapters.inbound.error_handlers import value_error_handler
+from plataforma5e.domain.models import RecursoDominio
+
+
+class DecisionRequest(BaseModel):
+    decision: str
+    texto: str | None = None
+
+
+class ExportacionRequest(BaseModel):
+    formato: str
+
+
+def generar_moodle_xml(recursos_aprobados: List[RecursoDominio]) -> str:
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>', "<quiz>"]
+    xml.append('  <question type="category"><category><text>$course$/top/Por defecto en Curso</text></category><info format="html"><text></text></info><idnumber></idnumber></question>')
+
+    for r in recursos_aprobados:
+        vigentes = [a for a in r.alternativas if a.estado != "descartado"]
+        xml.append('  <question type="multichoice">')
+        xml.append(f"    <name><text>{r.titulo}</text></name>")
+        xml.append(f'    <questiontext format="html"><text><![CDATA[{r.enunciado}]]></text></questiontext>')
+        xml.append(f'    <generalfeedback format="html"><text><![CDATA[{r.retroalimentacion}]]></text></generalfeedback>')
+        xml.append("    <defaultgrade>1.0000000</defaultgrade>")
+        xml.append("    <penalty>0.3333333</penalty>")
+        xml.append("    <hidden>0</hidden>")
+        xml.append("    <idnumber></idnumber>")
+        xml.append("    <single>true</single>")
+        xml.append("    <shuffleanswers>true</shuffleanswers>")
+        xml.append("    <answernumbering>abc</answernumbering>")
+        xml.append("    <showstandardinstruction>0</showstandardinstruction>")
+        xml.append('    <correctfeedback format="html"><text><![CDATA[<p>Respuesta correcta.</p>]]></text></correctfeedback>')
+        xml.append('    <partiallycorrectfeedback format="html"><text><![CDATA[<p>Respuesta parcialmente correcta.</p>]]></text></partiallycorrectfeedback>')
+        xml.append('    <incorrectfeedback format="html"><text><![CDATA[<p>Respuesta incorrecta.</p>]]></text></incorrectfeedback>')
+        xml.append("    <shownumcorrect/>")
+
+        for alt in vigentes:
+            frac = "100" if alt.es_correcta else "0"
+            xml.append(f'    <answer fraction="{frac}" format="html">')
+            xml.append(f'      <text><![CDATA[{alt.texto}]]></text>')
+            xml.append(f'      <feedback format="html"><text><![CDATA[{alt.justificacion}]]></text></feedback>')
+            xml.append("    </answer>")
+        xml.append("  </question>")
+
+    xml.append("</quiz>")
+    return "\n".join(xml)
+
+
+def crear_aplicacion() -> FastAPI:
+    app = FastAPI(title="Plataforma 5E - Backend Hexagonal", version="1.0.0")
+
+    # Inyección de dependencias en el arranque
+    repositorio = SQLAlchemyRecursoRepository()
+    servicio = RecursoService(repositorio)
+
+    # Manejo único de errores (C02 de EN-006)
+    app.add_exception_handler(ValueError, value_error_handler)
+
+    @app.get("/salud")
+    def salud():
+        return {"estado": "ok"}
+
+    @app.post("/api/v1/recursos/generar")
+    def generar_recursos(payload: Dict[str, Any]):
+        return servicio.generar_o_reiniciar_recursos()
+
+    @app.get("/api/v1/recursos/{recurso_id}")
+    def obtener_recurso(recurso_id: str):
+        rec = servicio.obtener_recurso(recurso_id)
+        if not rec:
+            raise ValueError("Recurso no encontrado")
+        return rec
+
+    @app.post("/api/v1/recursos/{recurso_id}/alternativas/{letra}/decision")
+    def tomar_decision(recurso_id: str, letra: str, req: DecisionRequest):
+        servicio.tomar_decision_alternativa(recurso_id, letra, req.decision, req.texto)
+        return {"estado": "actualizado"}
+
+    @app.post("/api/v1/recursos/{recurso_id}/aprobar")
+    def aprobar_recurso(recurso_id: str):
+        servicio.aprobar_recurso(recurso_id)
+        return {"estado": "aprobado"}
+
+    @app.post("/api/v1/exportaciones")
+    def exportar_recursos(req: ExportacionRequest):
+        if req.formato != "moodle_xml":
+            raise ValueError("Formato no soportado")
+        aprobados = servicio.obtener_aprobados()
+        contenido_xml = generar_moodle_xml(aprobados)
+        return Response(content=contenido_xml, media_type="application/xml")
+
+    return app
