@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { SOLO_LOCAL } from '../config/despliegue';
 import { StageCoverage } from '../components/domain';
 import { Alert, Button, ButtonLink, Card, CardHeader, Checkbox, ConfirmDialog, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
 import { RESOURCE_TYPES, STAGES, resourceTypeName, stageName } from '../data/catalog';
@@ -49,7 +50,9 @@ export function ConfiguracionPage() {
   const [historyError, setHistoryError] = useState('');
   const loadHistory = () => { setHistoryError(''); void refreshBackendHistory().catch((e) => setHistoryError(e.message)); };
   useEffect(() => { if (connected) loadHistory(); }, [connected]);
-  const mode = useAppState((s) => s.ui.generationMode ?? 'local');
+  const savedMode = useAppState((s) => s.ui.generationMode ?? 'local');
+  // En la versión publicada (sin backend) solo existe la demostración local.
+  const mode = SOLO_LOCAL ? 'local' : savedMode;
   const saved = useAppState((s) => s.ui.config);
   const documents = useAppState((s) => s.documents);
   const resources = useAppState((s) => s.resources);
@@ -119,10 +122,10 @@ export function ConfiguracionPage() {
       <div className="split">
         <Card>
           <CardHeader title="Solicitud de generación" />
-          <SelectField label="Origen de las propuestas" value={mode}
+          {!SOLO_LOCAL && <SelectField label="Origen de las propuestas" value={mode}
             onChange={(v) => { setResult(null); preferencesService.update('generationMode', v as 'local' | 'api_demo'); }}
             options={[{ value: 'local', label: 'Demostración local' }, { value: 'api_demo', label: 'API de demostración' }]} disabled={busy || connected}
-            hint="La API usa ejemplos preparados y guarda las solicitudes en el servidor. La generación RAG sigue pendiente." />
+            hint="La API usa ejemplos preparados y guarda las solicitudes en el servidor. La generación RAG sigue pendiente." />}
           {mode === 'api_demo' && <Alert title="Integración con API activa">Las propuestas se reciben del backend. Su contenido y evidencia son ficticios de demostración; las decisiones de revisión se guardan en este navegador.</Alert>}
 
           <form
