@@ -36,6 +36,7 @@ export function snapshotOf(resource: Resource): ResourceVersion {
     origin: resource.versionOrigin,
     edited: resource.edited,
     createdAt: resource.updatedAt,
+    ...(resource.source ? { source: resource.source } : {}),
   };
 }
 
@@ -140,8 +141,12 @@ export const regenerationService = {
       : buildVariant(latest, nextNumber);
 
     const now = new Date().toISOString();
+    // Un ejemplo alternativo es contenido local; la variante conserva el origen y la evidencia del recurso.
+    const { source: _previousSource, ...base } = latest;
+    const source = alternative ? undefined : latest.source;
     const updated: Resource = {
-      ...latest,
+      ...base,
+      ...(source ? { source } : {}),
       ...content,
       exampleId: alternative ? alternative.exampleId : latest.exampleId,
       status: 'pendiente',
@@ -170,8 +175,10 @@ export const regenerationService = {
     const target = current.previousVersions.find((v) => v.number === versionNumber);
     if (!target) throw new ServiceError('Esa versión ya no existe.');
     const now = new Date().toISOString();
+    const { source: _currentSource, ...base } = current;
     const updated: Resource = {
-      ...current,
+      ...base,
+      ...(target.source ? { source: target.source } : {}),
       exampleId: target.exampleId,
       title: target.title,
       body: target.body,

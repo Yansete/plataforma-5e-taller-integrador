@@ -7,7 +7,7 @@
 import { EXAMPLES } from '../data/demoContent';
 import { getState, setState } from '../store/store';
 import { instantiateExample, newId } from '../store/initialState';
-import type { GenerationOutcome, GenerationRequest, ResourceType, Stage5E } from '../types';
+import type { GenerationOutcome, GenerationRequest, Resource, ResourceType, Stage5E } from '../types';
 import { GenerationApiError, requestGeneration } from './generationApiService';
 import { wait } from './simulation';
 
@@ -31,6 +31,16 @@ export function unitHasUsableMaterial(unitId: string): boolean {
   return getState().documents.some((d) => d.unitId === unitId && d.status === 'procesado' && d.fragmentCount > 0);
 }
 
+/** Completa los campos de versión de un recurso que llega sin ellos (API o estado guardado antes de HU-054). */
+export function withVersionFields(r: Resource): Resource {
+  return {
+    ...r,
+    version: r.version ?? 1,
+    versionOrigin: r.versionOrigin ?? 'generada',
+    previousVersions: Array.isArray(r.previousVersions) ? r.previousVersions : [],
+  };
+}
+
 export const generationService = {
   async generate(
     input: Omit<GenerationRequest, 'id' | 'createdAt'>,
@@ -40,14 +50,16 @@ export const generationService = {
       onPhase?.('solicitud_api');
       try {
         const data = await requestGeneration(input);
+        // La API no maneja versiones: cada propuesta recibida es la versión 1 (HU-054).
+        const received = data.resources.map(withVersionFields);
         // Se valida la respuesta completa antes de modificar el estado.
         setState((s) => ({ ...s,
-          requests: [data.request, ...s.requests], resources: [...data.resources, ...s.resources],
+          requests: [data.request, ...s.requests], resources: [...received, ...s.resources],
           apiFragments: [...data.fragments, ...(s.apiFragments ?? []).filter((f) => !data.fragments.some((n) => n.id === f.id))],
           apiDocuments: [...data.documents, ...(s.apiDocuments ?? []).filter((d) => !data.documents.some((n) => n.id === d.id))],
-          ui: { ...s.ui, selectedResourceId: data.resources[0].id, reviewFilters: { unitId: input.unitId, stage: input.stage, status: 'pendiente' } },
+          ui: { ...s.ui, selectedResourceId: received[0].id, reviewFilters: { unitId: input.unitId, stage: input.stage, status: 'pendiente' } },
         }));
-        return { kind: 'ok', created: data.resources, skipped: 0, available: data.available };
+        return { kind: 'ok', created: received, skipped: 0, available: data.available };
       } catch (error) {
         return { kind: 'error', code: error instanceof GenerationApiError ? error.code : 'ERROR_GENERACION', message: error instanceof Error ? error.message : 'No se pudo completar la solicitud.' };
       }

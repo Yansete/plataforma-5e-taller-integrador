@@ -137,6 +137,8 @@ export interface ResourceVersion {
   origin: 'generada' | 'regenerada';
   edited: boolean;
   createdAt: string;
+  /** Origen del contenido de esa versión: propuesta de la API o ejemplo local. */
+  source?: 'api_demo';
 }
 
 export interface Resource {
