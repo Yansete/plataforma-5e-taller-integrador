@@ -1,38 +1,46 @@
 # Arquitectura y estado de Plataforma 5E
 
-Actualizado el 10/10/2026 para la revisión del Sprint 1. Este documento reúne el estado del proyecto,
-la integración con el backend y las convenciones para retomar el trabajo.
+Actualizado el 10/10/2026 (tarde), después de la revisión del asesor de la semana 6. Este documento reúne el estado
+del proyecto, la integración con el backend y las convenciones para retomar el trabajo.
 
 ## Estado actual
 
 Existe un frontend React 18, TypeScript y Vite 5 y un backend FastAPI con SQLAlchemy. El frontend ofrece
-modo local y modo conectado. La generación usa ejemplos ficticios preparados; no hay RAG ni IA en ejecución.
-La exportación produce archivos reales con plantillas fijas. La importación en instancias reales de Moodle
-y Chamilo permanece pendiente (TA-006).
+modo local (prototipo con ejemplos preparados) y modo conectado. En modo conectado el flujo es real: el backend
+extrae el texto del material, lo parte en fragmentos, recupera los relacionados con cada solicitud (BM25) y un
+generador redacta los recursos citándolos (RAG). El generador es un modelo de lenguaje si hay clave de IA o un
+generador por reglas si no la hay. La exportación produce archivos reales con plantillas fijas. La importación
+en instancias reales de Moodle y Chamilo permanece pendiente (TA-006).
 
 | Área | Funcionamiento actual | Límite |
 |---|---|---|
 | Sesión | HU-045 local; EP-002 verifica una cuenta demo en el servidor con token revocable de ocho horas | Registro de usuarios y roles de producción pendientes |
-| Cursos y unidades | Creación, edición y consulta locales o por API; conserva identificadores y RA existentes | Las unidades nuevas no tienen RA |
-| Material | Local: metadatos y procesamiento simulado. Conectado: bytes originales en la BD, descarga y eliminación | Los archivos nuevos tienen cero fragmentos; no se extraen ni vectorizan |
-| Solicitud | Selectores o chat por reglas, interpretación editable y confirmación antes del POST | No interpreta mediante modelos de IA |
-| Generación e historial | HU-053 guarda solicitudes y devuelve propuestas y fragmentos ficticios; EP-002 asocia el historial al docente | Los parámetros registrados no convierten los ejemplos en generación real |
+| Cursos y unidades | Creación y edición locales o por API, con sumilla, logro y resultados de aprendizaje por unidad | — |
+| Material | Conectado: archivo en la BD, extracción de PDF, PPTX y TXT, fragmentos de unas 220 palabras con su página, «Ver fragmentos» y búsqueda por tema en Wikipedia. Local: procesamiento simulado | Los PDF escaneados (solo imágenes) no tienen texto; no hay OCR. Sin embeddings todavía (EN-013) |
+| Solicitud | Selectores o chat por reglas, interpretación editable y confirmación antes del POST | El chat no interpreta mediante modelos de IA |
+| Generación e historial | Con material procesado: recuperación BM25 y redacción con IA (Gemini, Anthropic u OpenAI) o por reglas; solo se aceptan recursos con citas válidas. Unidades de ejemplo sin material: propuestas preparadas | Un solo agente por pedido; el orquestador sin repetir contenido entre etapas es HU-003. El umbral de evidencia aún no filtra |
 | Secuencia y revisión | Cinco etapas 5E, decisiones explícitas, regeneración simulada e historial de versiones | Las decisiones del frontend se guardan localmente; sincronización pendiente |
-| Exportación | Frontend: Moodle XML y ZIP QTI 2.1. API de demo: Moodle XML de recursos aprobados | Exportación de la interfaz y API de recursos son recorridos distintos; no están sincronizados |
+| Exportación | Frontend: Moodle XML y ZIP QTI 2.1 de los ítems aprobados y la secuencia completa como documento HTML. API de demo: Moodle XML de recursos aprobados | Exportación de la interfaz y API de recursos son recorridos distintos; no están sincronizados |
 | Indicadores | I2, I3, I5, I22 e I23 calculados localmente; otros valores de ejemplo o pendientes | No representan métricas de un piloto con estudiantes |
 
 ## Backend hexagonal
 
 La estructura de EN-004 es `backend/plataforma5e/`:
 
-- `domain/`: entidades y errores propios. No importa aplicación, adaptadores, FastAPI ni SQLAlchemy.
+- `domain/`: entidades y errores propios. `material.py` fragmenta el texto y `recuperacion.py` busca con BM25.
+  No importa aplicación, adaptadores, FastAPI ni SQLAlchemy.
 - `application/ports/`: contratos de repositorios y `ExportadorPort`.
-- `application/services/`: reglas de recursos, configuración y generación; no importa adaptadores ni frameworks.
+- `application/services/`: reglas de recursos, configuración, ingesta (`material_service.py`), generación y redacción
+  (`redaccion.py`: instrucciones para la IA y validación de citas); no importa adaptadores ni frameworks.
+- `application/ports/`: además, `ExtractorTextoPort`, `MaterialRepositoryPort`, `FuenteAbiertaPort` y `GeneradorRecursosPort`.
 - `application/use_cases/`: `RevisarAlternativa`, `AprobarRecurso` y `ExportarAprobados`.
 - `adapters/inbound/`: rutas HTTP, contratos Pydantic en `contratos/`, autorización y manejadores de errores.
   No importa SQLAlchemy. Las rutas de configuración consultan el servicio, sin acceder a su repositorio.
 - `adapters/outbound/persistence/`: repositorios SQLAlchemy y traducción de errores de persistencia.
 - `adapters/outbound/exportacion/`: plantilla fija de Moodle XML; escapa el título y conserva el HTML de los campos.
+- `adapters/outbound/extraccion/`: texto de PDF (pypdf), PPTX (python-pptx) y TXT.
+- `adapters/outbound/fuentes/`: búsqueda de artículos en Wikipedia en español.
+- `adapters/outbound/ia/`: generador con modelo de lenguaje por HTTP, generador por reglas y selección por variables de entorno.
 - `bootstrap/`: crea los adaptadores, inyecta servicios y casos de uso y registra routers y manejadores.
 
 Configuración recibe el correo y la clave de demostración desde bootstrap mediante
@@ -61,6 +69,10 @@ al iniciar sesión. La cuenta predeterminada es pública y exclusiva de la demo.
 | `/recursos/{id}/alternativas/{letra}/decision` | POST revisión de alternativa |
 | `/recursos/{id}/aprobar` | POST aprobación explícita |
 | `/exportaciones` | POST Moodle XML de aprobados |
+| `/documentos/{id}/procesar` | POST extraer el texto y crear los fragmentos |
+| `/documentos/{id}/fragmentos` | GET fragmentos del documento |
+| `/documentos/desde-tema` | POST buscar el tema en Wikipedia y guardarlo como material procesado |
+| `/ia` | GET generador activo (modelo de IA o reglas) |
 
 Los contratos 5E están en `backend/plataforma5e/adapters/inbound/contratos/`.
 Desde `backend/`, `python scripts/export_contracts.py` regenera sus JSON Schema en `docs/contratos/`.
@@ -149,8 +161,10 @@ Los informes de avance y las validaciones académicas también se conservan en N
 
 ## Pendientes y límites
 
-Ingesta y segmentación reales, embeddings, recuperación híbrida, RAG, generación y regeneración con modelos,
-autenticación de producción, sincronización de decisiones y exportaciones, importación LMS y mediciones del piloto.
+Embeddings y búsqueda por significado con pgvector (EN-013, HU-011), unificación con `db/migrations` (EN-024),
+orquestación de los agentes de las cinco etapas sin repetir contenido (HU-003), regeneración con el modelo (HU-052),
+OCR de PDF escaneados, autenticación de producción, sincronización de decisiones y exportaciones, importación LMS y
+mediciones del piloto.
 Faltan validación con docentes, lectores de pantalla y pruebas amplias de rendimiento. Las solicitudes rechazadas
 no aparecen en el historial. La carga simulada interrumpida por recarga queda en error y permite reintento.
 
