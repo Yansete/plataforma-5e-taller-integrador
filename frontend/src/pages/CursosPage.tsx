@@ -20,7 +20,7 @@ export function CursosPage() {
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }
   return <>
-    <PageHeader overline="Configuración del docente · HU-045" title="Cursos y unidades" description={sessionService.isBackend() ? "Cursos y unidades guardados en el backend. Se recuperan al iniciar sesión." : "Organiza el catálogo local del prototipo. Los cambios se guardan en este navegador."} actions={<ButtonLink to="/" icon="arrowRight">Continuar al inicio</ButtonLink>} />
+    <PageHeader overline="Configuración del docente · HU-045" title="Cursos y unidades" description={sessionService.isBackend() ? "Cursos y unidades guardados en el backend. Se recuperan al iniciar sesión." : "Organiza el catálogo local del prototipo. Los cambios se guardan en este navegador."} actions={<><ButtonLink to="/" icon="home">Ir al inicio</ButtonLink><ButtonLink to="/carga" variant="primary" icon="arrowRight">Continuar a carga de material</ButtonLink></>} />
     {message && <Alert tone="success" role="status">{message}</Alert>}
     <div className="split">
       <Card>

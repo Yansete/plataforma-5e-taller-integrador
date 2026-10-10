@@ -118,21 +118,62 @@ describe('exportación', () => {
   it('rechaza recursos no aprobados', async () => {
     const app = await loadApp();
     const item = firstItem(app);
-    await expect(app.exportService.runExport({ format: 'qti30', resourceIds: [item.id], targetLms: 'por_definir' })).rejects.toThrow(/aprobad/);
+    await expect(app.exportService.runExport({ format: 'moodle_xml', resourceIds: [item.id], targetLms: 'moodle' })).rejects.toThrow(/aprobad/);
     expect(app.getState().exports).toHaveLength(0);
   });
 
-  it('exporta lo aprobado y deja validación e importación pendientes', async () => {
+  it('HU-054 exporta lo aprobado a Moodle XML con la clave y solo los distractores aceptados', async () => {
+    const app = await loadApp();
+    const item = firstItem(app);
+    const distractors = item.options!.filter((o) => !o.isCorrect);
+    for (const o of distractors.slice(0, -1)) app.reviewService.acceptDistractor(item.id, o.id);
+    const dropped = distractors[distractors.length - 1];
+    app.reviewService.discardDistractor(item.id, dropped.id, 'duplicado');
+    app.reviewService.approveResource(item.id);
+    const job = await app.exportService.runExport({ format: 'moodle_xml', resourceIds: [item.id], targetLms: 'moodle' });
+    expect(job.steps.empaquetado).toBe('completado');
+    expect(job.steps.validacion).toBe('pendiente');
+    expect(job.steps.importacion).toBe('pendiente');
+    expect(job.fileName).toMatch(/moodle-\d{12}\.xml$/);
+    const file = app.exportService.buildFile(job, app.getState());
+    const xml = file.data as string;
+    expect(file.mimeType).toBe('application/xml');
+    expect(xml.startsWith('<?xml')).toBe(true);
+    expect(xml).toContain('<question type="multichoice">');
+    expect(xml.match(/fraction="100"/g)).toHaveLength(1);
+    expect(xml.match(/<answer /g)).toHaveLength(distractors.length);
+    // El texto del distractor descartado puede aparecer en el enunciado (p. ej. «7»): se comprueba solo entre las alternativas.
+    const answers = [...xml.matchAll(/<answer [^>]*>\s*<text><!\[CDATA\[(.*?)\]\]><\/text>/g)].map((m) => m[1]);
+    expect(answers).toHaveLength(distractors.length);
+    expect(answers).not.toContain(`<p>${dropped.text}</p>`);
+  });
+
+  it('HU-054 exporta a Chamilo como paquete QTI 2.1 (ZIP con manifiesto)', async () => {
     const app = await loadApp();
     const item = firstItem(app);
     decideAllDistractors(app, item.id);
     app.reviewService.approveResource(item.id);
-    const job = await app.exportService.runExport({ format: 'qti30', resourceIds: [item.id], targetLms: 'por_definir' });
-    expect(job.steps.validacion).toBe('pendiente');
-    expect(job.steps.importacion).toBe('pendiente');
-    expect(job.steps.empaquetado).toBe('simulado');
-    const summary = JSON.parse(app.exportService.buildSummary(job, app.getState()));
-    expect(summary.advertencia).toMatch(/No es un paquete/);
+    const job = await app.exportService.runExport({ format: 'qti21', resourceIds: [item.id], targetLms: 'chamilo' });
+    const file = app.exportService.buildFile(job, app.getState());
+    const zip = file.data as Uint8Array;
+    expect(file.fileName.endsWith('.zip')).toBe(true);
+    expect([zip[0], zip[1], zip[2], zip[3]]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+    const text = new TextDecoder().decode(zip);
+    expect(text).toContain('imsmanifest.xml');
+    expect(text).toContain('imsqti_item_xmlv2p1');
+    expect(text).toContain('<choiceInteraction responseIdentifier="RESPONSE"');
+  });
+
+  it('cada plataforma usa su formato y ya no se ofrecen QTI 3.0 ni SCORM', async () => {
+    const app = await loadApp();
+    expect(app.formatForLms('moodle')).toBe('moodle_xml');
+    expect(app.formatForLms('chamilo')).toBe('qti21');
+    const item = firstItem(app);
+    decideAllDistractors(app, item.id);
+    app.reviewService.approveResource(item.id);
+    await expect(app.exportService.runExport({ format: 'moodle_xml', resourceIds: [item.id], targetLms: 'chamilo' })).rejects.toThrow(/QTI 2.1/);
+    const catalog = await import('../data/catalog');
+    expect(catalog.EXPORT_FORMATS.map((f) => f.id)).toEqual(['moodle_xml', 'qti21']);
   });
 
   it('un recurso devuelto a revisión deja de ser exportable', async () => {
@@ -140,11 +181,13 @@ describe('exportación', () => {
     const item = firstItem(app);
     decideAllDistractors(app, item.id);
     app.reviewService.approveResource(item.id);
+    const job = await app.exportService.runExport({ format: 'moodle_xml', resourceIds: [item.id], targetLms: 'moodle' });
     app.reviewService.revertResource(item.id);
     expect(app.exportableResources(app.getState().resources)).toHaveLength(0);
+    expect(() => app.exportService.buildFile(job, app.getState())).toThrow(/volvió a revisión/);
   });
 
-  it('QTI no admite recursos que no son ítems', async () => {
+  it('Moodle XML y QTI no admiten recursos que no son ítems', async () => {
     const app = await loadApp();
     const outcome = await app.generationService.generate({
       unitId: 'u2', outcomeId: null, stage: 'explain', resourceType: 'glosario', quantity: 1,
@@ -153,8 +196,66 @@ describe('exportación', () => {
     expect(outcome.kind).toBe('ok');
     const glossary = outcome.kind === 'ok' ? outcome.created[0] : null;
     app.reviewService.approveResource(glossary!.id);
-    expect(app.formatIssues('qti30', [app.getState().resources.find((r) => r.id === glossary!.id)!])).toMatch(/solo admite/);
-    await expect(app.exportService.runExport({ format: 'qti30', resourceIds: [glossary!.id], targetLms: 'por_definir' })).rejects.toThrow();
+    expect(app.formatIssues('moodle_xml', [app.getState().resources.find((r) => r.id === glossary!.id)!])).toMatch(/solo admite/);
+    await expect(app.exportService.runExport({ format: 'qti21', resourceIds: [glossary!.id], targetLms: 'chamilo' })).rejects.toThrow();
+  });
+});
+
+describe('regeneración (HU-054)', () => {
+  beforeEach(() => storage.clear());
+
+  it('propone otra versión, la deja pendiente y conserva la anterior', async () => {
+    const app = await loadApp();
+    const item = firstItem(app);
+    app.reviewService.acceptDistractor(item.id, item.options!.find((o) => !o.isCorrect)!.id);
+    const updated = await app.regenerationService.regenerate(item.id);
+    expect(updated.version).toBe(2);
+    expect(updated.versionOrigin).toBe('regenerada');
+    expect(updated.status).toBe('pendiente');
+    expect(updated.previousVersions).toHaveLength(1);
+    expect(updated.previousVersions[0].number).toBe(1);
+    expect(updated.previousVersions[0].body).toBe(item.body);
+    expect(updated.body).not.toBe(item.body);
+    expect(updated.options!.every((o) => o.decision === 'pendiente')).toBe(true);
+    expect(app.getState().reviewLog[0].action).toBe('regenerar');
+  });
+
+  it('no regenera un recurso aprobado', async () => {
+    const app = await loadApp();
+    const item = firstItem(app);
+    decideAllDistractors(app, item.id);
+    app.reviewService.approveResource(item.id);
+    await expect(app.regenerationService.regenerate(item.id)).rejects.toThrow(/aprobado/);
+  });
+
+  it('permite regenerar un recurso descartado y lo devuelve a revisión', async () => {
+    const app = await loadApp();
+    const item = firstItem(app);
+    app.reviewService.discardResource(item.id, 'sin_sentido');
+    const updated = await app.regenerationService.regenerate(item.id);
+    expect(updated.status).toBe('pendiente');
+    expect(updated.discardReason).toBeNull();
+  });
+
+  it('restaura una versión anterior sin perder la vigente y sin repetir números', async () => {
+    const app = await loadApp();
+    const item = firstItem(app);
+    await app.regenerationService.regenerate(item.id);
+    const restored = app.regenerationService.restoreVersion(item.id, 1);
+    expect(restored.version).toBe(1);
+    expect(restored.body).toBe(item.body);
+    expect(restored.previousVersions.map((v) => v.number)).toEqual([2]);
+    const third = await app.regenerationService.regenerate(item.id);
+    expect(third.version).toBe(3);
+    expect(third.previousVersions.map((v) => v.number)).toEqual([2, 1]);
+  });
+
+  it('una variante regenerada sigue citando la misma evidencia', async () => {
+    const app = await loadApp();
+    const item = firstItem(app);
+    const updated = await app.regenerationService.regenerate(item.id);
+    if (updated.exampleId === item.exampleId) expect(updated.citations).toEqual(item.citations);
+    expect(updated.citations.length).toBeGreaterThan(0);
   });
 });
 

@@ -28,6 +28,19 @@ function readPersisted(): AppState | null {
       const initial = createInitialState();
       parsed.courses = initial.courses;
       parsed.units = initial.units;
+      parsed.version = 2;
+    }
+    // HU-054: versiones de recursos y formatos de exportación de SP-003 (Moodle XML y QTI 2.1).
+    if (parsed.version === 2) {
+      parsed.resources = parsed.resources.map((r) => ({
+        ...r,
+        version: r.version ?? 1,
+        versionOrigin: r.versionOrigin ?? 'generada',
+        previousVersions: r.previousVersions ?? [],
+      }));
+      const ui = parsed.ui as AppState['ui'] & { exportFormat: string; exportTargetLms: string };
+      if (ui.exportFormat !== 'moodle_xml' && ui.exportFormat !== 'qti21') ui.exportFormat = 'moodle_xml';
+      if (ui.exportTargetLms === 'por_definir') ui.exportTargetLms = ui.exportFormat === 'qti21' ? 'chamilo' : 'moodle';
       parsed.version = STATE_VERSION;
     }
     if (parsed.version !== STATE_VERSION || !Array.isArray(parsed.courses) || !Array.isArray(parsed.units)) return null;

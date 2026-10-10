@@ -19,12 +19,15 @@ import {
   approvalBlockers,
   catalogService,
   preferencesService,
+  regenerationBlocker,
+  regenerationService,
   reviewService,
   unitShortLabel,
   type ResourceEdits,
 } from '../services';
+import { formatDateTime } from '../utils/format';
 import { useAppState } from '../store/store';
-import type { DiscardReason, ItemOption, Resource, ReviewStatus, Stage5E } from '../types';
+import type { DiscardReason, ItemOption, Resource, ResourceVersion, ReviewStatus, Stage5E } from '../types';
 
 const STATUS_ORDER: Record<ReviewStatus, number> = { pendiente: 0, aprobado: 1, descartado: 2 };
 const LETTERS = 'ABCDEFGH';
@@ -78,7 +81,7 @@ export function RevisionPage() {
   return (
     <>
       <PageHeader
-        overline="Paso 3 · Revisión docente"
+        overline="Paso 4 · Revisión docente"
         title="Revisión docente"
         description="Revisa cada propuesta con su evidencia a la vista. Acepta, edita o descarta los distractores y decide sobre cada recurso. Nada se aprueba sin tu acción."
         actions={
@@ -193,6 +196,7 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
   const [discardTarget, setDiscardTarget] = useState<DiscardTarget | null>(null);
   const [reason, setReason] = useState<DiscardReason | ''>('');
   const [highlight, setHighlight] = useState<string[]>([]);
+  const [regenerating, setRegenerating] = useState(false);
 
   const outcome = catalogService.getOutcome(resource.outcomeId);
   const blockers = approvalBlockers(resource);
@@ -213,6 +217,24 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
       onMessage({ tone: 'warn', text: err instanceof Error ? err.message : 'No se pudo completar la acción.' });
     }
   };
+
+  /** HU-054: pide otra versión y conserva la vigente en el historial. */
+  const regenerate = async () => {
+    setRegenerating(true);
+    try {
+      const updated = await regenerationService.regenerate(resource.id);
+      onMessage({
+        tone: 'info',
+        text: `Se propuso la versión ${updated.version}. La versión ${updated.previousVersions[0].number} quedó guardada en «Versiones anteriores». Revisa la nueva antes de aprobarla.`,
+      });
+    } catch (err) {
+      onMessage({ tone: 'warn', text: err instanceof Error ? err.message : 'No se pudo regenerar el recurso.' });
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const regenBlocker = regenerationBlocker(resource);
 
   const confirmDiscard = () => {
     if (!discardTarget || !reason) return;
@@ -255,6 +277,9 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
           </div>
           <div className="stack stack--tight" style={{ alignItems: 'flex-end' }}>
             <ReviewStatusTag status={resource.status} edited={resource.edited} />
+            <Tag tone={resource.versionOrigin === 'regenerada' ? 'outline' : 'neutral'} icon="layers">
+              {`Versión ${resource.version}${resource.versionOrigin === 'regenerada' ? ' · regenerada' : ''}`}
+            </Tag>
             <div className="cluster">
               <Button compact icon="chevronLeft" aria-label="Recurso anterior" onClick={onPrev} disabled={!onPrev} />
               <span className="caption nowrap">{position}</span>
@@ -359,6 +384,9 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
                   <Button icon="edit" onClick={() => setEditing(true)}>
                     Editar
                   </Button>
+                  <Button icon="reset" onClick={regenerate} loading={regenerating} disabled={regenerating}>
+                    {regenerating ? 'Regenerando…' : 'Regenerar'}
+                  </Button>
                   <Button
                     variant="danger"
                     icon="x"
@@ -372,11 +400,33 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
                   </Button>
                 </>
               ) : (
-                <Button icon="undo" onClick={() => run(() => reviewService.revertResource(resource.id), 'El recurso volvió a revisión.')}>
-                  Devolver a revisión
-                </Button>
+                <>
+                  <Button icon="undo" onClick={() => run(() => reviewService.revertResource(resource.id), 'El recurso volvió a revisión.')}>
+                    Devolver a revisión
+                  </Button>
+                  {isDescartado && (
+                    <Button icon="reset" onClick={regenerate} loading={regenerating} disabled={regenerating}>
+                      {regenerating ? 'Regenerando…' : 'Regenerar'}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
+            {isAprobado && <p className="caption">{regenBlocker}</p>}
+            {(isPending || isDescartado) && (
+              <p className="caption">
+                «Regenerar» pide otra versión del recurso con la misma evidencia (simulado). La versión actual se conserva y puedes
+                restaurarla.
+              </p>
+            )}
+
+            <VersionHistory
+              resource={resource}
+              canRestore={!isAprobado}
+              onRestore={(n) =>
+                run(() => regenerationService.restoreVersion(resource.id, n), `Se restauró la versión ${n}. Revísala antes de aprobarla.`)
+              }
+            />
           </div>
         )}
       </Card>
@@ -618,5 +668,60 @@ function EditForm({ resource, onSave, onCancel }: { resource: Resource; onSave: 
         <Button onClick={onCancel}>Cancelar</Button>
       </div>
     </form>
+  );
+}
+
+/** Versiones anteriores del recurso (HU-054): se conservan al regenerar y se pueden restaurar. */
+function VersionHistory({ resource, canRestore, onRestore }: { resource: Resource; canRestore: boolean; onRestore: (n: number) => void }) {
+  const [open, setOpen] = useState<number | null>(null);
+  if (resource.previousVersions.length === 0) return null;
+  return (
+    <section aria-labelledby="versiones-titulo" className="stack stack--tight">
+      <h3 className="title" id="versiones-titulo">
+        Versiones anteriores ({resource.previousVersions.length})
+      </h3>
+      <ul className="stack stack--tight" style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Versiones anteriores">
+        {resource.previousVersions.map((v: ResourceVersion) => (
+          <li key={v.number} className="card card--inner" style={{ padding: 'var(--space-2) var(--space-3)' }}>
+            <div className="cluster" style={{ justifyContent: 'space-between' }}>
+              <span className="stack stack--tight" style={{ gap: 2 }}>
+                <strong>
+                  Versión {v.number} · {v.origin === 'regenerada' ? 'regenerada' : 'primera propuesta'}
+                  {v.edited ? ' · editada' : ''}
+                </strong>
+                <span className="caption">{formatDateTime(v.createdAt)} · {v.title}</span>
+              </span>
+              <span className="cluster">
+                <Button compact aria-expanded={open === v.number} onClick={() => setOpen(open === v.number ? null : v.number)}>
+                  {open === v.number ? 'Ocultar' : 'Ver'}
+                </Button>
+                <Button compact icon="undo" disabled={!canRestore} onClick={() => onRestore(v.number)}>
+                  Restaurar
+                </Button>
+              </span>
+            </div>
+            {open === v.number && (
+              <div className="prose" style={{ marginTop: 'var(--space-2)' }}>
+                {v.body.split('\n\n').map((p, i) => (
+                  <p key={i} style={{ whiteSpace: 'pre-line' }}>
+                    {p}
+                  </p>
+                ))}
+                {v.options && (
+                  <ol style={{ margin: 0 }}>
+                    {v.options.map((o) => (
+                      <li key={o.id}>
+                        {o.text}
+                        {o.isCorrect ? ' (clave)' : ''}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -11,6 +11,7 @@ import { NoEncontradaPage } from './pages/NoEncontradaPage';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
 import { CursosPage } from './pages/CursosPage';
+import { SecuenciaPage } from './pages/SecuenciaPage';
 import { useDemoSession } from './services';
 function DemoSessionRequired() {
   return useDemoSession() ? <Outlet /> : <Navigate to="/login" replace />;
@@ -28,6 +29,7 @@ export function App() {
             <Route path="carga" element={<CargaPage />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="configuracion" element={<ConfiguracionPage />} />
+            <Route path="secuencia" element={<SecuenciaPage />} />
             <Route path="revision" element={<RevisionPage />} />
             <Route path="exportacion" element={<ExportacionPage />} />
             <Route path="indicadores" element={<IndicadoresPage />} />

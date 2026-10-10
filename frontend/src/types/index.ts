@@ -121,6 +121,24 @@ export interface ItemOption {
 
 export type ReviewStatus = 'pendiente' | 'aprobado' | 'descartado';
 
+/**
+ * Versión anterior de un recurso (HU-054). Al regenerar, la versión vigente se guarda aquí
+ * para que el docente pueda compararla o restaurarla.
+ */
+export interface ResourceVersion {
+  number: number;
+  /** Ejemplo preparado del que salió esta versión (solo en la demostración). */
+  exampleId: string;
+  title: string;
+  body: string;
+  options: ItemOption[] | null;
+  citations: Citation[];
+  /** `generada`: la primera propuesta; `regenerada`: pedida con el botón Regenerar. */
+  origin: 'generada' | 'regenerada';
+  edited: boolean;
+  createdAt: string;
+}
+
 export interface Resource {
   /** HU-053: origen explícito de las propuestas recibidas por HTTP. */
   source?: "api_demo";
@@ -144,6 +162,12 @@ export interface Resource {
   createdAt: string;
   updatedAt: string;
   decidedAt: string | null;
+  /** Número de la versión vigente (1 = primera propuesta). HU-054. */
+  version: number;
+  /** Cómo se obtuvo la versión vigente. */
+  versionOrigin: 'generada' | 'regenerada';
+  /** Versiones anteriores, de la más reciente a la más antigua. */
+  previousVersions: ResourceVersion[];
 }
 
 export type ReviewAction =
@@ -154,7 +178,9 @@ export type ReviewAction =
   | 'aceptar_distractor'
   | 'descartar_distractor'
   | 'editar_distractor'
-  | 'revertir_distractor';
+  | 'revertir_distractor'
+  | 'regenerar'
+  | 'restaurar_version';
 
 /** Registro de decisiones de revisión (EN-006). */
 export interface ReviewLogEntry {
@@ -194,7 +220,14 @@ export type GenerationOutcome =
   | { kind: 'error'; code: string; message: string }
   | { kind: 'rechazado'; code: 'EVIDENCIA_INSUFICIENTE' | 'SIN_MATERIAL_PROCESADO'; message: string };
 
-export type ExportFormat = 'qti30' | 'scorm' | 'common_cartridge' | 'moodle_xml' | 'gift';
+/**
+ * Formatos de exportación según SP-003 y HU-054: Moodle importa Moodle XML y Chamilo importa QTI 2.1.
+ * Sustituyen a QTI 3.0, SCORM, Common Cartridge y GIFT de la versión anterior del prototipo.
+ */
+export type ExportFormat = 'moodle_xml' | 'qti21';
+
+/** Plataformas LMS objetivo definidas en SP-003. */
+export type TargetLms = 'moodle' | 'chamilo';
 
 export type ExportStepId = 'seleccion' | 'formato' | 'empaquetado' | 'validacion' | 'importacion';
 
@@ -207,6 +240,8 @@ export interface ExportJob {
   targetLms: string;
   createdAt: string;
   steps: Record<ExportStepId, ExportStepStatus>;
+  /** Nombre del archivo generado (HU-054). */
+  fileName?: string;
 }
 
 /** Selecciones que se conservan entre pantallas y recargas. */

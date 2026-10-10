@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../components/Icon';
-import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, PageHeader, SelectField, Tag } from '../components/ui';
-import { EXPORT_FORMATS, TARGET_LMS_OPTIONS, exportFormatName, resourceTypeName, stageName } from '../data/catalog';
+import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, PageHeader, Tag } from '../components/ui';
+import { EXPORT_FORMATS, TARGET_LMS_OPTIONS, exportFormatName, resourceTypeName, stageName, targetLmsName } from '../data/catalog';
 import {
   EXPORT_STEPS,
   catalogService,
   exportService,
   exportableResources,
+  formatForLms,
   formatIssues,
   preferencesService,
   unitShortLabel,
 } from '../services';
 import { getState, useAppState } from '../store/store';
-import type { ExportFormat, ExportJob, ExportStepId, ExportStepStatus } from '../types';
+import type { ExportJob, ExportStepId, ExportStepStatus, TargetLms } from '../types';
 import { formatDateTime } from '../utils/format';
 
 export function ExportacionPage() {
@@ -36,6 +37,13 @@ export function ExportacionPage() {
     descartado: resources.filter((r) => r.status === 'descartado').length,
   };
   const issue = selectedResources.length > 0 ? formatIssues(format, selectedResources) : null;
+
+  const chooseLms = (lms: TargetLms) => {
+    preferencesService.update('exportTargetLms', lms);
+    preferencesService.update('exportFormat', formatForLms(lms));
+    setLastJob(null);
+    setError(null);
+  };
 
   const setSelection = (ids: string[]) => {
     preferencesService.update('exportSelection', ids);
@@ -77,14 +85,19 @@ export function ExportacionPage() {
   return (
     <>
       <PageHeader
-        overline="Paso 4 · Exportación"
+        overline="Paso 5 · Exportación"
         title="Exportación"
-        description="Elige recursos aprobados y el formato de destino. La exportación está simulada: no se genera ningún paquete QTI, SCORM ni Common Cartridge."
+        description="Elige recursos aprobados y la plataforma de destino: Moodle importa Moodle XML y Chamilo importa QTI 2.1 (SP-003)."
+        actions={
+          <ButtonLink to="/indicadores" icon="arrowRight">
+            Ver indicadores
+          </ButtonLink>
+        }
       />
 
-      <Alert tone="warn" title="Integración pendiente">
-        El exportador real, la validación con el validador de 1EdTech y las pruebas de importación en LMS se implementarán con el backend
-        (HU-018, HU-019, TA-002). El resumen descargable de esta pantalla no es un paquete válido.
+      <Alert tone="info" title="Archivo generado en el navegador">
+        El archivo se arma con plantillas fijas a partir de lo aprobado, igual que lo hará el backend (ADR-005). La conexión con la API
+        (EN-022) y la verificación de importación en instancias reales de Moodle y Chamilo (TA-006) siguen pendientes.
       </Alert>
 
       {approved.length === 0 ? (
@@ -129,38 +142,32 @@ export function ExportacionPage() {
 
           <div className="stack">
             <Card>
-              <CardHeader title="Formato y destino" />
+              <CardHeader title="Plataforma de destino" />
               <div className="stack">
                 <fieldset className="fieldset">
-                  <legend className="fieldset__legend">Formato</legend>
-                  {EXPORT_FORMATS.map((f) => (
-                    <label key={f.id} className="check">
-                      <input
-                        type="radio"
-                        name="formato"
-                        value={f.id}
-                        checked={format === f.id}
-                        disabled={running !== null}
-                        onChange={() => {
-                          preferencesService.update('exportFormat', f.id as ExportFormat);
-                          setLastJob(null);
-                          setError(null);
-                        }}
-                      />
-                      <span>
-                        <strong>{f.name}</strong> {f.role === 'respaldo' && <span className="tag">Respaldo</span>}
-                        <span className="field__hint" style={{ display: 'block' }}>{f.description}</span>
-                      </span>
-                    </label>
-                  ))}
+                  <legend className="fieldset__legend">¿Dónde importarás los ítems?</legend>
+                  {TARGET_LMS_OPTIONS.map((o) => {
+                    const info = EXPORT_FORMATS.find((f) => f.id === o.format)!;
+                    return (
+                      <label key={o.id} className="check">
+                        <input
+                          type="radio"
+                          name="destino"
+                          value={o.id}
+                          checked={targetLms === o.id}
+                          disabled={running !== null}
+                          onChange={() => chooseLms(o.id)}
+                        />
+                        <span>
+                          <strong>
+                            {o.label} · {info.name}
+                          </strong>
+                          <span className="field__hint" style={{ display: 'block' }}>{info.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
                 </fieldset>
-                <SelectField
-                  label="LMS de destino"
-                  value={targetLms}
-                  onChange={(v) => preferencesService.update('exportTargetLms', v)}
-                  options={TARGET_LMS_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
-                  hint="Los LMS objetivo se definirán con la matriz de compatibilidad (SP-001)."
-                />
                 {issue && (
                   <Alert tone="warn" title="Formato incompatible con la selección" role="alert">
                     {issue}
@@ -172,7 +179,7 @@ export function ExportacionPage() {
                   </Alert>
                 )}
                 <Button variant="primary" icon="export" onClick={run} loading={running !== null} disabled={selection.length === 0 || Boolean(issue) || running !== null}>
-                  Exportar selección (simulado)
+                  {`Exportar para ${targetLmsName(targetLms)}`}
                 </Button>
                 {selection.length === 0 && <span className="caption">Selecciona al menos un recurso aprobado.</span>}
               </div>
@@ -187,11 +194,11 @@ export function ExportacionPage() {
               </ol>
               {lastJob && (
                 <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
-                  <Alert tone="success" title="Exportación simulada registrada" role="status">
-                    Se registró la solicitud con {lastJob.resourceIds.length} recurso(s). No se generó ningún paquete; la validación y la
-                    importación siguen pendientes.
+                  <Alert tone="success" title="Archivo listo para descargar" role="status">
+                    Se generó {lastJob.fileName} con {lastJob.resourceIds.length} ítem(s) aprobado(s) para {targetLmsName(lastJob.targetLms)}.
+                    La validación en la plataforma y la importación real siguen pendientes (TA-006).
                   </Alert>
-                  <DownloadSummary job={lastJob} />
+                  <DownloadFile job={lastJob} onError={setError} />
                 </div>
               )}
             </Card>
@@ -200,7 +207,7 @@ export function ExportacionPage() {
       )}
 
       <Card>
-        <CardHeader title="Historial de exportaciones" description="Solicitudes simuladas guardadas en este navegador." />
+        <CardHeader title="Historial de exportaciones" description="Exportaciones guardadas en este navegador. El archivo se vuelve a generar con el contenido aprobado vigente." />
         {history.length === 0 ? (
           <EmptyState icon="clock" title="Sin exportaciones todavía">
             Cuando exportes una selección, aparecerá aquí.
@@ -211,23 +218,25 @@ export function ExportacionPage() {
               <thead>
                 <tr>
                   <th scope="col">Fecha</th>
-                  <th scope="col">Formato</th>
+                  <th scope="col">Destino</th>
                   <th scope="col" className="num">Recursos</th>
                   <th scope="col">Estado</th>
-                  <th scope="col">Resumen</th>
+                  <th scope="col">Archivo</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((job) => (
                   <tr key={job.id}>
                     <td data-label="Fecha" className="nowrap">{formatDateTime(job.createdAt)}</td>
-                    <td data-label="Formato">{exportFormatName(job.format)}</td>
+                    <td data-label="Destino">
+                      {targetLmsName(job.targetLms)} · {exportFormatName(job.format)}
+                    </td>
                     <td data-label="Recursos" className="num">{job.resourceIds.length}</td>
                     <td data-label="Estado">
-                      <Tag tone="review" icon="pending">Simulada · validación pendiente</Tag>
+                      <Tag tone="review" icon="pending">Generado · importación por verificar</Tag>
                     </td>
                     <td data-label="Resumen">
-                      <DownloadSummary job={job} compact />
+                      <DownloadFile job={job} compact onError={setError} />
                     </td>
                   </tr>
                 ))}
@@ -268,22 +277,37 @@ function FlowStep({ n, label, note, status }: { n: number; label: string; note: 
   );
 }
 
-function DownloadSummary({ job, compact }: { job: ExportJob; compact?: boolean }) {
+function DownloadFile({ job, compact, onError }: { job: ExportJob; compact?: boolean; onError: (message: string) => void }) {
+  const legacy = job.format !== 'moodle_xml' && job.format !== 'qti21';
   const download = () => {
-    const json = exportService.buildSummary(job, getState());
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `resumen-exportacion-DEMO-${job.id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    try {
+      const file = exportService.buildFile(job, getState());
+      const blob = new Blob([file.data], { type: file.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo generar el archivo.');
+    }
   };
+  if (legacy) return <span className="caption">Formato anterior, sin archivo</span>;
+  if (compact)
+    return (
+      <Button compact icon="download" onClick={download} aria-label={`Descargar ${job.fileName ?? 'archivo'}`}>
+        Descargar
+      </Button>
+    );
   return (
-    <Button compact icon="download" onClick={download}>
-      {compact ? 'Resumen JSON' : 'Descargar resumen (JSON, no importable)'}
-    </Button>
+    <div className="stack stack--tight">
+      <Button icon="download" onClick={download}>
+        {job.format === 'qti21' ? 'Descargar paquete QTI 2.1 (.zip)' : 'Descargar Moodle XML (.xml)'}
+      </Button>
+      <span className="caption" style={{ overflowWrap: 'anywhere' }}>{job.fileName}</span>
+    </div>
   );
 }
