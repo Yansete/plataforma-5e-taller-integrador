@@ -41,3 +41,6 @@ __pycache__/
 frontend/coverage/
 backend/.coverage
 backend/htmlcov/
+
+# Salida incremental de TypeScript (se regenera con cada build)
+*.tsbuildinfo

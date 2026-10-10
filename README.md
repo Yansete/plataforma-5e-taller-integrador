@@ -2,9 +2,30 @@
 
 Proyecto del curso **Taller Integrador 1** (UPAO, 2026-II). Plataforma que, a partir del material del docente, propone
 recursos para una secuencia didáctica del modelo **5E**, con **revisión docente obligatoria**, **trazabilidad a la
-evidencia de origen** y exportación futura a estándares (QTI, SCORM, IMS Common Cartridge, Moodle XML).
+evidencia de origen** y exportación de lo aprobado a **Moodle (Moodle XML)** y **Chamilo (QTI 2.1)**.
 
 > **Estado actual:** El repositorio cuenta con el **frontend** interactivo, la base de datos local en **PostgreSQL 17 + pgvector**, y el **backend base** consolidado bajo Arquitectura Hexagonal con FastAPI y SQLAlchemy.
+
+## Demo rápida
+
+Dos terminales desde la raíz del repositorio. El backend usa SQLite por defecto (no requiere Docker).
+
+```bash
+# Terminal 1 · backend (FastAPI)
+cd backend
+python -m venv .venv && source .venv/bin/activate      # Windows: .\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+uvicorn plataforma5e.bootstrap.app:crear_aplicacion --factory --port 8000
+
+# Terminal 2 · frontend (React + Vite)
+cd frontend
+npm install
+npm run dev
+```
+
+Abre [http://localhost:5173](http://localhost:5173) e inicia sesión con `docente@5e.demo` / `Demo5E!2026` (cuenta pública de
+demostración). En **Modo de acceso** elige **Servidor de la plataforma (backend)** para guardar cursos, archivos e historial en
+el backend, o **Prototipo local** para usar solo el navegador (no necesita la terminal 1).
 
 ## Requisitos
 
@@ -52,12 +73,12 @@ python -m venv .venv
 # En Windows (PowerShell): .\.venv\Scripts\Activate.ps1
 # En Linux/macOS: source .venv/bin/activate
 
-pip install -e .    # instala dependencias del backend
-uvicorn plataforma5e.bootstrap.app:crear_aplicacion --reload --port 8000
+pip install -e ".[dev]"    # dependencias del backend y de las pruebas
+uvicorn plataforma5e.bootstrap.app:crear_aplicacion --factory --reload --port 8000
 ```
 
 * **Swagger UI:** Documentación interactiva disponible en [http://localhost:8000/docs](http://localhost:8000/docs).
-* **Contrato OpenAPI:** Archivo estático versionado en [`docs/openapi.json`](https://www.google.com/search?q=docs/openapi.json).
+* **Contrato OpenAPI:** Archivo estático versionado en [`docs/openapi.json`](docs/openapi.json).
 
 Otros comandos (dentro de `backend/`):
 
@@ -71,26 +92,22 @@ Otros comandos (dentro de `backend/`):
 
 ## Cómo probar el recorrido
 
-HU-045 incorpora /login y /cursos. Accede con `docente@5e.demo` / `Demo5E!2026` (credenciales públicas de demostración). Crea o edita cursos y unidades y pulsa «Continuar al inicio». La autenticación es simulada y el catálogo se guarda localmente. Evidencias y límites en `docs/HU-045-Notion.md`.
+El menú lateral sigue los pasos del docente. Cada pantalla tiene un botón para avanzar al siguiente.
 
-
-1. **Inicio**: revisa el resumen. Hay 3 documentos de demostración y 4 ítems en revisión; ninguno aprobado.
-2. **Revisión docente** (paso 3): elige un ítem. Intenta «Aprobar recurso»: se bloquea hasta decidir cada distractor.
-   Acepta, edita o descarta cada distractor (el descarte pide un motivo) y luego aprueba.
-   En «Estructura para los trabajos de impresión» verás una advertencia simulada del filtro de fiabilidad.
-3. **Recarga la página** (F5): tus decisiones se conservan.
-4. **Exportación** (paso 4): solo aparecen los recursos aprobados. Selecciónalos, elige un formato y pulsa
-   «Exportar selección (simulado)». La validación y la importación quedan como *pendientes*. Puedes descargar un
-   resumen JSON que **no** es un paquete importable.
-5. **Configuración** (paso 2): genera recursos de otra etapa (por ejemplo, Enganchar de la Unidad 2). Prueba también una
-   combinación sin ejemplos (Unidad 3 + Enganchar) para ver el rechazo simulado.
-6. **Carga de material** (paso 1): selecciona un PDF, PPTX o TXT, completa el contexto y registra. Observa el
-   procesamiento simulado y el estado de error (activa «Simular un fallo» en *Opciones de la demostración*).
-7. **Indicadores**: compara valores calculados localmente, ejemplos y pendientes; usa los filtros y la vista de tabla.
+1. **Cursos y unidades**: crea o edita un curso y sus unidades. Luego «Continuar a carga de material».
+2. **Carga de material** (paso 1): registra un PDF, PPTX o TXT con su contexto. En modo backend el archivo se guarda en el
+   servidor; la extracción de fragmentos todavía está pendiente.
+3. **Solicitud** (paso 2): pide recursos con los **selectores** de Configuración o con la **solicitud por chat**, que muestra
+   la interpretación para que la corrijas antes de continuar. La generación usa ejemplos preparados (local o desde la API).
+4. **Secuencia 5E** (paso 3): tablero con las cinco etapas de la unidad, sus recursos y su estado de revisión.
+5. **Revisión docente** (paso 4): revisa cada recurso con la evidencia citada. Acepta, edita o descarta cada distractor (el
+   descarte pide un motivo) y aprueba. «Regenerar» propone otra versión y conserva la anterior, que puedes restaurar.
+6. **Exportación** (paso 5): elige **Moodle** (Moodle XML) o **Chamilo** (paquete QTI 2.1 en ZIP), exporta lo aprobado y
+   descarga el archivo. El Moodle XML pasa el validador del backend.
+7. **Indicadores**: valores calculados con tus decisiones, ejemplos y pendientes.
 8. **Restablecer demo** (barra lateral): vuelve al estado inicial.
 
-Prueba también con la ventana estrecha (o las herramientas de desarrollo del navegador en modo móvil): la barra lateral
-se convierte en un menú.
+Tus decisiones se conservan al recargar la página (F5). Con la ventana estrecha, la barra lateral se convierte en un menú.
 
 ## Base de datos local (PostgreSQL + pgvector) y Almacenamiento
 
@@ -103,12 +120,12 @@ docker compose run --rm dbmate up     # aplica las migraciones
 ./db/verificacion/verificar.sh        # comprueba la extensión y los índices (EN-011)
 ```
 
-Detalles, comandos y estructura de las migraciones en [db/README.md](https://www.google.com/search?q=db/README.md).
+Detalles, comandos y estructura de las migraciones en [db/README.md](db/README.md).
 
 ### Dónde se guardan los datos y archivos
 
-* **Datos y Embeddings (PostgreSQL):** La información relacional (recursos pedagógicos, opciones, revisiones) e índices vectoriales de los fragmentos se almacenan en el contenedor de **PostgreSQL 17** gestionado por Docker, persistiendo en el volumen local `db_data`.
-* **Archivos del docente:** Los documentos fuente subidos por el docente (PDF, PPTX, TXT) se gestionan localmente en el volumen de almacenamiento persistente montado en el servidor/contenedor bajo el directorio de ingestión del sistema, desde donde se procesan los fragmentos citados.
+* **Datos y Embeddings (PostgreSQL):** La información relacional (recursos pedagógicos, opciones, revisiones) e índices vectoriales de los fragmentos se almacenan en el contenedor de **PostgreSQL 17** gestionado por Docker, persistiendo en el volumen local `datos-postgres`.
+* **Archivos del docente:** en modo backend, los PDF, PPTX y TXT se guardan en la base de datos del backend (SQLite por defecto o PostgreSQL con `DATABASE_URL=postgresql+psycopg://…`). La extracción de fragmentos y los embeddings son el siguiente paso (EN-012/EN-013).
 
 ## Estructura
 
@@ -128,8 +145,8 @@ taller-integrador/
 ├── frontend/              Aplicación React + TypeScript + Vite
 │   └── src/
 │       ├── components/    Componentes reutilizables (sistema de diseño)
-│       ├── pages/         Las seis pantallas (+ página 404)
-│       ├── services/      Servicios simulados (se sustituirán por el backend)
+│       ├── pages/         Pantallas del recorrido (+ página 404)
+│       ├── services/      Servicios: llaman al backend o simulan lo que aún no existe
 │       ├── store/         Estado local y persistencia en localStorage
 │       ├── data/          Datos de demostración y catálogos
 │       ├── types/         Modelos de datos
@@ -138,17 +155,17 @@ taller-integrador/
 ├── spikes/                Experimentos aislados (no son código de producción)
 ├── docker-compose.yml     PostgreSQL + pgvector y dbmate
 ├── .env.example           Variables de entorno locales (copiar como .env)
-├── CLAUDE.md              Contexto técnico para retomar el trabajo
+├── CONTEXTO.md            Contexto técnico para retomar el trabajo
 └── README.md
 ```
 
 ## Documentación
 
-* [Estado del proyecto](https://www.google.com/search?q=docs/estado-del-proyecto.md): qué funciona, qué está simulado y qué falta.
-* [Decisiones técnicas](https://www.google.com/search?q=docs/decisiones-tecnicas.md): decisiones, motivos, contradicciones y vacíos detectados.
-* [Integración con el backend](https://www.google.com/search?q=docs/integracion-backend.md): modelos, contratos propuestos y puntos de sustitución.
-* [Guía de Git y GitHub](https://www.google.com/search?q=docs/guia-git.md): pasos para versionar y subir el proyecto.
-* [Especificación OpenAPI](https://www.google.com/search?q=docs/openapi.json): especificación contractual generada del backend.
+* [Estado del proyecto](docs/estado-del-proyecto.md): qué funciona, qué está simulado y qué falta.
+* [Decisiones técnicas](docs/decisiones-tecnicas.md): decisiones, motivos, contradicciones y vacíos detectados.
+* [Integración con el backend](docs/integracion-backend.md): modelos, contratos propuestos y puntos de sustitución.
+* [Guía de Git y GitHub](docs/guia-git.md): pasos para versionar y subir el proyecto.
+* [Especificación OpenAPI](docs/openapi.json): especificación contractual generada del backend.
 
 ## Equipo
 

@@ -20,6 +20,11 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+]
+# CI instala ".[dev,postgres]": el controlador de PostgreSQL ya está en las dependencias base.
+postgres = [
+    "psycopg[binary]>=3.1.0",
 ]
 
 [tool.setuptools.packages.find]

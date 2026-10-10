@@ -39,6 +39,10 @@ const DEFAULTS: ConfigForm = {
 
 const PENDING_HINT = 'Se registra en la solicitud; su efecto requiere el motor RAG (pendiente).';
 
+
+const DIFFICULTY_NAMES: Record<Difficulty, string> = { basica: 'Básica', intermedia: 'Intermedia', avanzada: 'Avanzada' };
+const difficultyName = (d: Difficulty) => DIFFICULTY_NAMES[d] ?? d;
+
 export function ConfiguracionPage() {
   const connected = sessionService.isBackend();
   const [confirmRequest, setConfirmRequest] = useState(false);
@@ -94,7 +98,7 @@ export function ConfiguracionPage() {
     <>
       <ConfirmDialog open={confirmRequest} title="Confirmar solicitud" confirmLabel="Confirmar y solicitar" onCancel={() => setConfirmRequest(false)} onConfirm={() => { setConfirmRequest(false); void generate(); }}>
         <p>{unit ? `Unidad ${unit.number}: ${unit.title}` : 'Selecciona una unidad'}</p>
-        <p>{stageName(form.stage)} · {resourceTypeName(form.resourceType)} · {form.quantity} recurso(s) · {form.difficulty}</p>
+        <p>{stageName(form.stage)} · {resourceTypeName(form.resourceType)} · {form.quantity} recurso(s) · {difficultyName(form.difficulty)}</p>
         <p>Resultado de aprendizaje: {form.outcomeId ? catalogService.getOutcome(form.outcomeId)?.code : 'Todos los de la unidad'} · Alternativas: {form.optionCount} · top-k: {form.topK} · Umbral: {form.evidenceThreshold}</p>
         <p>Público: {form.audience || 'Sin especificar'} · Competencia: {form.competency || 'Sin especificar'}</p>
         <p>Modalidades: {(form.modalities ?? []).join(', ')} · Indicaciones: {form.instructions || 'Sin indicaciones'}</p>
@@ -168,7 +172,7 @@ export function ConfiguracionPage() {
               <TextField label="Competencia a desarrollar" value={form.competency ?? ''} onChange={(v) => update('competency', v)} maxLength={200} />
             </div>
             <fieldset className="fieldset">
-              <legend className="fieldset__legend">Enfoque Multimodal</legend>
+              <legend className="fieldset__legend">Modalidades del recurso</legend>
               <div className="grid grid--auto">
                 {MODALITIES.map((m) => <Checkbox key={m} label={m} checked={(form.modalities ?? []).includes(m)} disabled={busy}
                   onChange={(checked) => update('modalities', checked ? [...(form.modalities ?? []), m] : (form.modalities ?? []).filter((v) => v !== m))} />)}
@@ -177,7 +181,7 @@ export function ConfiguracionPage() {
 
             <div className="form-grid">
               <SelectField
-                label="Formato base de generación (Simulación)"
+                label="Tipo de recurso"
                 value={form.resourceType}
                 onChange={(v) => update('resourceType', v as ResourceType)}
                 options={typesForStage.map((t) => ({ value: t.id, label: `${t.name} (${t.story})` }))}
@@ -353,7 +357,7 @@ export function ConfiguracionPage() {
                     <td data-label="Etapa">{stageName(r.stage)}</td>
                     <td data-label="Tipo">{resourceTypeName(r.resourceType)}</td>
                     <td data-label="Cantidad" className="num">{r.quantity}</td>
-                    <td data-label="Parámetros" className="caption">{`top-k ${r.topK} · umbral ${r.evidenceThreshold.toLocaleString('es-ES', { minimumFractionDigits: 1 })} · ${r.difficulty} · ${r.audience || 'Sin público'} · ${r.competency || 'Sin competencia'} · ${(r.modalities ?? []).join(', ')} · ${r.instructions || 'Sin indicaciones'}`}</td>
+                    <td data-label="Parámetros" className="caption">{`top-k ${r.topK} · umbral ${r.evidenceThreshold.toLocaleString('es-ES', { minimumFractionDigits: 1 })} · ${difficultyName(r.difficulty)} · ${r.audience || 'Sin público'} · ${r.competency || 'Sin competencia'} · ${(r.modalities ?? []).join(', ')} · ${r.instructions || 'Sin indicaciones'}`}</td>
                   </tr>
                 ))}
               </tbody>

@@ -44,6 +44,13 @@ function readPersisted(): AppState | null {
       parsed.version = STATE_VERSION;
     }
     if (parsed.version !== STATE_VERSION || !Array.isArray(parsed.courses) || !Array.isArray(parsed.units)) return null;
+    // Recursos guardados sin campos de versión (por ejemplo, propuestas de la API antes de corregirlo).
+    parsed.resources = parsed.resources.map((r) => ({
+      ...r,
+      version: r.version ?? 1,
+      versionOrigin: r.versionOrigin ?? 'generada',
+      previousVersions: Array.isArray(r.previousVersions) ? r.previousVersions : [],
+    }));
     // Un procesamiento simulado interrumpido por una recarga no puede continuar.
     parsed.documents = parsed.documents.map((d) =>
       d.status === 'procesando'

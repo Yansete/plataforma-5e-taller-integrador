@@ -34,14 +34,15 @@ export function InicioPage() {
     const hasResources = resources.length > 0;
     const allDecided = hasResources && stats.pending === 0;
     const hasExport = exportsDone.length > 0;
-    const flags = [hasMaterial, hasResources, allDecided && stats.approved > 0, hasExport];
+    const flags = [hasMaterial, hasResources, hasResources, allDecided && stats.approved > 0, hasExport];
     const firstOpen = flags.findIndex((f) => !f);
     const stateFor = (i: number): StepState => (flags[i] ? 'done' : i === firstOpen ? 'current' : 'todo');
     return [
       { n: 1, title: 'Cargar material', text: `${stats.processed} documento(s) procesado(s).`, to: '/carga', state: stateFor(0), cta: 'Ir a carga' },
-      { n: 2, title: 'Configurar la generación', text: `${resources.length} recurso(s) propuesto(s).`, to: '/configuracion', state: stateFor(1), cta: 'Configurar' },
-      { n: 3, title: 'Revisar con evidencia', text: `${stats.pending} en revisión · ${stats.approved} aprobado(s).`, to: '/revision', state: stateFor(2), cta: 'Revisar' },
-      { n: 4, title: 'Exportar lo aprobado', text: `${exportsDone.length} exportación(es) simulada(s).`, to: '/exportacion', state: stateFor(3), cta: 'Exportar' },
+      { n: 2, title: 'Pedir recursos (selectores o chat)', text: `${resources.length} recurso(s) propuesto(s).`, to: '/configuracion', state: stateFor(1), cta: 'Configurar' },
+      { n: 3, title: 'Ver la secuencia 5E', text: 'Recursos de cada etapa de la unidad y su estado.', to: '/secuencia', state: stateFor(2), cta: 'Ver secuencia' },
+      { n: 4, title: 'Revisar con evidencia', text: `${stats.pending} en revisión · ${stats.approved} aprobado(s).`, to: '/revision', state: stateFor(3), cta: 'Revisar' },
+      { n: 5, title: 'Exportar a Moodle o Chamilo', text: `${exportsDone.length} archivo(s) exportado(s).`, to: '/exportacion', state: stateFor(4), cta: 'Exportar' },
     ];
   }, [stats, resources.length, exportsDone.length]);
 
@@ -73,7 +74,7 @@ export function InicioPage() {
           <StatTile label="Documentos procesados" value={stats.processed} note={`de ${documents.length} registrados`} />
           <StatTile label="Recursos en revisión" value={stats.pending} note="esperan tu decisión" />
           <StatTile label="Recursos aprobados" value={stats.approved} note="disponibles para exportar" />
-          <StatTile label="Exportaciones" value={exportsDone.length} note="simuladas, sin paquete real" />
+          <StatTile label="Exportaciones" value={exportsDone.length} note="Moodle XML o QTI 2.1" />
         </div>
       </section>
 
@@ -106,7 +107,8 @@ export function InicioPage() {
           <ul className="stack stack--tight text-ui" style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>
             <li>La generación entrega ejemplos preparados; no hay IA conectada.</li>
             <li>Ningún recurso se aprueba sin tu acción explícita.</li>
-            <li>Solo lo aprobado puede exportarse, y la exportación no produce paquetes válidos.</li>
+            <li>Solo lo aprobado puede exportarse: Moodle XML para Moodle y QTI 2.1 para Chamilo.</li>
+            <li>Puedes pedir otra versión de un recurso con «Regenerar» sin perder la anterior.</li>
             <li>Los archivos que selecciones no se leen ni se guardan; solo sus metadatos.</li>
           </ul>
         </Card>

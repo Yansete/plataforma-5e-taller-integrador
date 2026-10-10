@@ -5,12 +5,13 @@ import { Icon, type IconName } from './Icon';
 import { useAppState } from '../store/store';
 import { refreshBackendCatalog } from '../services/configurationApiService';
 import { Alert, Button, ConfirmDialog } from './ui';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export const ROUTES: { to: string; label: string; icon: IconName; step?: number; title: string }[] = [
   { to: '/', label: 'Inicio', icon: 'home', title: 'Inicio del docente' },
   { to: '/cursos', label: 'Cursos y unidades', icon: 'book', title: 'Cursos y unidades' },
   { to: '/carga', label: 'Carga de material', icon: 'upload', step: 1, title: 'Carga de material' },
-  { to: '/chat', label: 'Solicitud por chat', icon: 'sliders', title: 'Solicitud por chat' },
+  { to: '/chat', label: 'Solicitud por chat', icon: 'quote', step: 2, title: 'Solicitud por chat' },
   { to: '/configuracion', label: 'Configuración', icon: 'sliders', step: 2, title: 'Configuración de la generación' },
   { to: '/secuencia', label: 'Secuencia 5E', icon: 'layers', step: 3, title: 'Secuencia 5E' },
   { to: '/revision', label: 'Revisión docente', icon: 'review', step: 4, title: 'Revisión docente' },
@@ -123,7 +124,8 @@ export function Layout() {
                     <Icon name={r.icon} />
                     <span>{r.label}</span>
                     {r.step && (
-                      <span className="nav-link__step" aria-label={`paso ${r.step}`}>
+                      <span className="nav-link__step">
+                        <span className="visually-hidden">paso </span>
                         {r.step}
                       </span>
                     )}
@@ -147,12 +149,12 @@ export function Layout() {
           <div className="demo-banner" role="note">
             <Icon name="info" size={16} />
             <span>
-              {connected ? 'EP-002 conectado: sesión, cursos, archivos e historial en el servidor. La generación usa ejemplos preparados; las decisiones de revisión se guardan en este navegador.' : 'Demostración del frontend. Los datos y procesos son simulados. Tus decisiones se guardan en este navegador.'}
+              {connected ? 'Conectado al servidor: sesión, cursos, archivos e historial se guardan en la base de datos. La generación usa ejemplos preparados; las decisiones de revisión se guardan en este navegador.' : 'Prototipo local: la generación usa ejemplos preparados y tus decisiones se guardan en este navegador.'}
             </span>
           </div>
           <main id="contenido" className="content" tabIndex={-1}>
             {logoutError && <Alert tone="warn" role="alert">{logoutError}</Alert>}
-            {connected && !ready ? <div className="stack">{apiError ? <><Alert tone="warn" role="alert">{apiError}</Alert><Button onClick={loadCatalog}>Reintentar conexión</Button></> : <p role="status">Cargando cursos, archivos e historial del servidor…</p>}</div> : <Outlet />}
+            {connected && !ready ? <div className="stack">{apiError ? <><Alert tone="warn" role="alert">{apiError}</Alert><Button onClick={loadCatalog}>Reintentar conexión</Button></> : <p role="status">Cargando cursos, archivos e historial del servidor…</p>}</div> : <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>}
           </main>
         </div>
       </div>
