@@ -27,6 +27,13 @@ Abre [http://localhost:5173](http://localhost:5173) e inicia sesión con `docent
 demostración). En **Modo de acceso** elige **Servidor de la plataforma (backend)** para guardar cursos, archivos e historial en
 el backend, o **Prototipo local** para usar solo el navegador (no necesita la terminal 1).
 
+### Versión publicada (Vercel)
+
+El frontend también se publica en Vercel para revisarlo sin instalar nada. Esa versión no tiene backend: solo ofrece el
+modo **Prototipo local** y guarda los datos en el navegador de quien la abre. La configuración está en
+[`frontend/vercel.json`](frontend/vercel.json) (compila con `VITE_SOLO_LOCAL=true` y redirige todas las rutas a
+`index.html`). En el proyecto de Vercel, **Root Directory** debe ser `frontend`. Cada push a `main` actualiza la publicación.
+
 ## Requisitos
 
 - **Node.js 18 o superior** (recomendado: Node.js 22 LTS). Descárgalo de [https://nodejs.org](https://nodejs.org) e instálalo con las opciones por defecto.

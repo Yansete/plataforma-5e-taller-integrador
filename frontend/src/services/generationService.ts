@@ -10,6 +10,7 @@ import { instantiateExample, newId } from '../store/initialState';
 import type { GenerationOutcome, GenerationRequest, Resource, ResourceType, Stage5E } from '../types';
 import { GenerationApiError, requestGeneration } from './generationApiService';
 import { wait } from './simulation';
+import { SOLO_LOCAL } from '../config/despliegue';
 
 export type GenerationPhase = 'recuperacion' | 'generacion' | 'verificacion' | 'solicitud_api';
 
@@ -46,7 +47,7 @@ export const generationService = {
     input: Omit<GenerationRequest, 'id' | 'createdAt'>,
     onPhase?: (phase: GenerationPhase) => void,
   ): Promise<GenerationOutcome> {
-    if (getState().ui.generationMode === 'api_demo') {
+    if (getState().ui.generationMode === 'api_demo' && !SOLO_LOCAL) {
       onPhase?.('solicitud_api');
       try {
         const data = await requestGeneration(input);
