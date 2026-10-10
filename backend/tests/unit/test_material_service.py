@@ -117,7 +117,8 @@ def test_desde_tema_crea_documentos_procesados_y_no_duplica():
     assert len(creados) == 1 and creados[0]['status'] == 'procesado'
     assert creados[0]['origin']['url'] == articulo['url'] and creados[0]['documentType'] == 'Artículo de fuente abierta'
     guardado = config.docs[creados[0]['id']][1].decode()
-    assert guardado.startswith('Protocolo de control de transmisión\nFuente: https://es.wikipedia.org/wiki/TCP')
+    assert guardado.startswith('Protocolo de control de transmisión\n\n') and 'wikipedia' not in guardado.lower()
+    assert creados[0]['origin']['licencia'] == 'CC BY-SA 4.0'  # la atribución queda en el origen del documento
     otra_vez = servicio.desde_tema('d', 'u1', 'protocolo TCP')
     assert otra_vez[0]['id'] == creados[0]['id']  # el mismo artículo no se guarda dos veces
 
@@ -147,5 +148,5 @@ def test_desde_tema_propaga_errores_propios_de_la_fuente():
 
 
 def test_nombre_para_articulo_es_seguro():
-    assert nombre_para_articulo('TCP/IP \\ redes', 'Wikipedia') == 'TCP IP   redes (Wikipedia).txt'
-    assert nombre_para_articulo('', 'Wikipedia') == 'Artículo (Wikipedia).txt'
+    assert nombre_para_articulo('TCP/IP \\ redes', 'Wikipedia') == 'TCP IP   redes.txt'
+    assert nombre_para_articulo('', 'Wikipedia') == 'Artículo.txt'

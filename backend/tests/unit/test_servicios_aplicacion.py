@@ -212,7 +212,18 @@ def test_obtener_generacion_inexistente():
 
 class ConfiguracionRepoFalso:
     def __init__(self):
-        self.sesiones, self.catalogos, self.docs, self.propietarios = {}, {}, {}, {}
+        self.sesiones, self.catalogos, self.docs, self.propietarios, self.usuarios = {}, {}, {}, {}, {}
+        self.borrados = []
+
+    def usuario_obtener(self, email):
+        return self.usuarios.get(email)
+
+    def usuario_crear(self, usuario):
+        self.usuarios[usuario["email"]] = usuario
+
+    def curso_borrar(self, docente, curso_id, unidades):
+        self.catalogos[docente] = [c for c in self.catalogos.get(docente, []) if c["id"] != curso_id]
+        self.borrados.append((docente, curso_id, unidades))
 
     def iniciar_catalogo(self, docente):
         self.catalogos.setdefault(docente, [{

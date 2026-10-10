@@ -61,6 +61,7 @@ def construir_instrucciones(contexto: dict) -> tuple[str, str]:
     sistema = (
         f'Eres un asistente pedagógico que redacta recursos para la etapa «{etapa}» del modelo 5E ({proposito}). '
         'Escribes en español claro para docentes universitarios del Perú. '
+        'No menciones el modelo 5E ni el nombre de la etapa en los títulos ni en el contenido: el docente ve el recurso tal cual. '
         'Usa SOLO la información de los FRAGMENTOS del material del docente: no agregues datos que no estén en ellos. '
         'Cada afirmación importante debe citar las etiquetas de los fragmentos que la respaldan (F1, F2…). '
         'Si los fragmentos no alcanzan para un recurso, no lo inventes: devuelve menos recursos. '
@@ -134,17 +135,29 @@ def _bloque(valor, maximo: int) -> str:
 
 
 def _ids(valor, etiquetas: dict[str, str]) -> list[str]:
-    """Convierte ['F1', 'f2', '[F3]', 4] en ids reales de fragmentos; descarta lo que no existe."""
-    if isinstance(valor, (str, int)):
+    """Convierte ['F1', 'f2', '[F3]', 4, 'F1, F5'] en ids reales de fragmentos; descarta lo que no existe."""
+    if isinstance(valor, (str, int)) and not isinstance(valor, bool):
         valor = [valor]
     if not isinstance(valor, list):
         return []
     ids = []
     for v in valor:
-        clave = f'F{v}' if isinstance(v, int) else re.sub(r'[^0-9Ff]', '', str(v)).upper()
-        if clave in etiquetas and etiquetas[clave] not in ids:
-            ids.append(etiquetas[clave])
+        if isinstance(v, bool):
+            continue
+        numeros = [str(v)] if isinstance(v, int) else re.findall(r'\d+', str(v))
+        for numero in numeros:
+            clave = f'F{int(numero)}'
+            if clave in etiquetas and etiquetas[clave] not in ids:
+                ids.append(etiquetas[clave])
     return ids
+
+
+def _es_correcta(alternativa: dict) -> bool:
+    """La clave puede venir como booleano o como texto («true», «sí»), según el modelo."""
+    valor = next((alternativa[k] for k in ('correcta', 'esCorrecta', 'correct') if k in alternativa), False)
+    if isinstance(valor, str):
+        return valor.strip().lower() in ('true', 'sí', 'si', 'verdadero', 'correcta')
+    return valor is True
 
 
 def normalizar_recursos(datos, contexto: dict) -> list[dict]:
@@ -196,7 +209,7 @@ def _alternativas(lista, etiquetas: dict[str, str], citas: list[dict], cantidad:
         vistas.add(texto.casefold())
         opcion = {
             'texto': texto,
-            'correcta': a.get('correcta') is True,
+            'correcta': _es_correcta(a),
             'retroalimentacion': _texto(a.get('retroalimentacion'), MAX_ALTERNATIVA) or 'Revisa el fragmento citado del material.',
             'fragmentos': _ids(a.get('fragmentos'), etiquetas) or respaldo,
         }

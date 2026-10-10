@@ -90,7 +90,7 @@ def test_catalogo_sesion_archivo_historial_sobreviven_reinicio(tmp_path):
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0)); puerto = s.getsockname()[1]
     base = f'http://127.0.0.1:{puerto}'
-    env = {**os.environ, 'DATABASE_URL': f'sqlite:///{tmp_path / "persistente.db"}'}
+    env = {**os.environ, 'DATABASE_URL': f'sqlite:///{tmp_path / "persistente.db"}', 'CATALOGO_DEMO': 'true'}
     headers = None; doc_id = None; req_id = None
     for intento in range(2):
         with (tmp_path / f'servidor{intento}.log').open('w') as log:
