@@ -150,7 +150,8 @@ export const regenerationService = {
       edited: false,
       version: nextNumber,
       versionOrigin: 'regenerada',
-      previousVersions: [snapshotOf(latest), ...latest.previousVersions],
+      // Historial ordenado de la versión más nueva a la más antigua (también tras restaurar).
+      previousVersions: [snapshotOf(latest), ...latest.previousVersions].sort((a, b) => b.number - a.number),
       updatedAt: now,
     };
     setState((s) => ({

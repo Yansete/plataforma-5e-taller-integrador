@@ -142,7 +142,10 @@ describe('exportación', () => {
     expect(xml).toContain('<question type="multichoice">');
     expect(xml.match(/fraction="100"/g)).toHaveLength(1);
     expect(xml.match(/<answer /g)).toHaveLength(distractors.length);
-    expect(xml).not.toContain(dropped.text);
+    // El texto del distractor descartado puede aparecer en el enunciado (p. ej. «7»): se comprueba solo entre las alternativas.
+    const answers = [...xml.matchAll(/<answer [^>]*>\s*<text><!\[CDATA\[(.*?)\]\]><\/text>/g)].map((m) => m[1]);
+    expect(answers).toHaveLength(distractors.length);
+    expect(answers).not.toContain(`<p>${dropped.text}</p>`);
   });
 
   it('HU-054 exporta a Chamilo como paquete QTI 2.1 (ZIP con manifiesto)', async () => {
