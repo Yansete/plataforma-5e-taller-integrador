@@ -9,6 +9,7 @@ export const ROUTES: { to: string; label: string; icon: IconName; step?: number;
   { to: '/', label: 'Inicio', icon: 'home', title: 'Inicio del docente' },
   { to: '/cursos', label: 'Cursos y unidades', icon: 'home', title: 'Cursos y unidades' },
   { to: '/carga', label: 'Carga de material', icon: 'upload', step: 1, title: 'Carga de material' },
+  { to: '/chat', label: 'Solicitud por chat', icon: 'sliders', title: 'Solicitud por chat' },
   { to: '/configuracion', label: 'Configuración', icon: 'sliders', step: 2, title: 'Configuración de la generación' },
   { to: '/revision', label: 'Revisión docente', icon: 'review', step: 3, title: 'Revisión docente' },
   { to: '/exportacion', label: 'Exportación', icon: 'export', step: 4, title: 'Exportación' },

@@ -1295,3 +1295,12 @@ textarea {
 .sidebar__footer span { overflow-wrap: anywhere; }
 
 .course-list { list-style: none; padding: 0; margin: 0; }
+
+/* HU-046 / EN-005: conversación con los tokens compartidos de EN-014. */
+.chat-layout { margin-top: var(--space-5); }
+.chat-log { display: flex; flex-direction: column; gap: var(--space-3); max-height: 420px; overflow-y: auto; margin-bottom: var(--space-5); }
+.chat-message { padding: var(--space-4); border-radius: var(--radius-inner); background: var(--color-ground); overflow-wrap: anywhere; }
+.chat-message p { margin: var(--space-2) 0 0; white-space: pre-wrap; }
+.chat-message--teacher { background: var(--color-accent-soft); color: var(--color-brand-dark); }
+
+.chat-layout .btn { white-space: normal; padding: var(--space-3) var(--space-4); }

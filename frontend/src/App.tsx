@@ -9,6 +9,7 @@ import { IndicadoresPage } from './pages/IndicadoresPage';
 import { NoEncontradaPage } from './pages/NoEncontradaPage';
 
 import { LoginPage } from './pages/LoginPage';
+import { ChatPage } from './pages/ChatPage';
 import { CursosPage } from './pages/CursosPage';
 import { useDemoSession } from './services';
 function DemoSessionRequired() {
@@ -25,6 +26,7 @@ export function App() {
             <Route path="cursos" element={<CursosPage />} />
             <Route index element={<InicioPage />} />
             <Route path="carga" element={<CargaPage />} />
+            <Route path="chat" element={<ChatPage />} />
             <Route path="configuracion" element={<ConfiguracionPage />} />
             <Route path="revision" element={<RevisionPage />} />
             <Route path="exportacion" element={<ExportacionPage />} />

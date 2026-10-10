@@ -179,6 +179,10 @@ export interface GenerationRequest {
   topK: number;
   evidenceThreshold: number;
   instructions: string;
+  /** HU-046: contexto confirmado por el docente; efecto pedagógico pendiente de RAG. */
+  audience?: string;
+  competency?: string;
+  modalities?: string[];
   createdAt: string;
 }
 

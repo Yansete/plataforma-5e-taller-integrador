@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StageCoverage } from '../components/domain';
-import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
+import { Alert, Button, ButtonLink, Card, CardHeader, Checkbox, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
 import { RESOURCE_TYPES, STAGES, resourceTypeName, stageName } from '../data/catalog';
 import {
   availableExamples,
@@ -14,6 +14,7 @@ import {
 } from '../services';
 import { useAppState } from '../store/store';
 import type { Difficulty, GenerationOutcome, GenerationRequest, ResourceType, Stage5E } from '../types';
+import { MODALITIES } from '../services/chatService';
 import { formatDateTime } from '../utils/format';
 
 type ConfigForm = Omit<GenerationRequest, 'id' | 'createdAt'>;
@@ -29,6 +30,9 @@ const DEFAULTS: ConfigForm = {
   topK: 10,
   evidenceThreshold: 0.6,
   instructions: '',
+  audience: '',
+  competency: 'Pensamiento crítico',
+  modalities: ['Textual'],
 };
 
 const PENDING_HINT = 'Se registra en la solicitud; su efecto requiere el motor RAG (pendiente).';
@@ -87,6 +91,7 @@ export function ConfiguracionPage() {
         description="Elige la unidad, el resultado de aprendizaje y la etapa 5E. La generación está simulada con ejemplos preparados; todo lo propuesto pasa a revisión."
       />
 
+      <div className="cluster"><ButtonLink to="/chat">Preparar solicitud por chat</ButtonLink></div>
       <div className="split">
         <Card>
           <CardHeader title="Solicitud de generación" />
@@ -102,7 +107,7 @@ export function ConfiguracionPage() {
                 label="Unidad"
                 value={form.unitId}
                 onChange={(v) => update('unitId', v)}
-                options={units.map((u) => ({ value: u.id, label: `Unidad ${u.number}: ${u.title}` }))}
+                options={units.map((u) => ({ value: u.id, label: `${catalogService.listCourses().find((c) => c.id === u.courseId)?.code ?? "Curso"} · Unidad ${u.number}: ${u.title}` }))}
                 disabled={busy}
               />
               <SelectField
@@ -132,42 +137,17 @@ export function ConfiguracionPage() {
               </div>
             </fieldset>
 
-            {/* =========================================================
-                NUEVOS CAMPOS: MULTIMODALIDAD Y CONTEXTO (Ref: HU-024)
-                ========================================================= */}
-            <div className="form-grid" style={{ marginTop: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '14px', fontWeight: 600, color: '#1A211E' }}>Público objetivo / Ciclo</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. Estudiantes de 3er ciclo de Ingeniería" 
-                  disabled={busy} 
-                  style={{ padding: '8px 12px', border: '1px solid #DCD7CC', borderRadius: '8px', fontSize: '14px', width: '100%' }} 
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '14px', fontWeight: 600, color: '#1A211E' }}>Competencia a desarrollar</label>
-                <select disabled={busy} style={{ padding: '8px 12px', border: '1px solid #DCD7CC', borderRadius: '8px', fontSize: '14px', backgroundColor: 'white', width: '100%' }}>
-                  <option>Pensamiento crítico</option>
-                  <option>Pensamiento innovador</option>
-                  <option>Resolución de problemas</option>
-                  <option>Trabajo en equipo</option>
-                </select>
-              </div>
+            <div className="form-grid">
+              <TextField label="Público objetivo / Ciclo" value={form.audience ?? ''} onChange={(v) => update('audience', v)} maxLength={200} hint="Se conserva en la solicitud; su efecto requiere RAG." />
+              <TextField label="Competencia a desarrollar" value={form.competency ?? ''} onChange={(v) => update('competency', v)} maxLength={200} />
             </div>
-
-            <fieldset className="fieldset" style={{ marginBottom: 'var(--space-2)' }}>
-              <legend className="fieldset__legend" style={{ color: '#1A211E', marginBottom: '8px' }}>Enfoque Multimodal</legend>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
-                {['Textual', 'Gamificado', 'Multimedia', 'Kinestésico'].map(tipo => (
-                  <label key={tipo} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', border: '1px solid #DCD7CC', borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer' }}>
-                    <input type="checkbox" defaultChecked={tipo === 'Textual'} disabled={busy} style={{ accentColor: '#1F5C4A', width: '16px', height: '16px' }} />
-                    <span style={{ fontSize: '14px', color: '#1A211E' }}>{tipo}</span>
-                  </label>
-                ))}
+            <fieldset className="fieldset">
+              <legend className="fieldset__legend">Enfoque Multimodal</legend>
+              <div className="grid grid--auto">
+                {MODALITIES.map((m) => <Checkbox key={m} label={m} checked={(form.modalities ?? []).includes(m)} disabled={busy}
+                  onChange={(checked) => update('modalities', checked ? [...(form.modalities ?? []), m] : (form.modalities ?? []).filter((v) => v !== m))} />)}
               </div>
             </fieldset>
-            {/* ========================================================= */}
 
             <div className="form-grid">
               <SelectField

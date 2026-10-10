@@ -10,6 +10,9 @@ export const catalogService = {
   getCourse(): Course {
     return getState().courses[0];
   },
+  listCourses(): Course[] {
+    return getState().courses;
+  },
   listUnits(): Unit[] {
     return getState().units;
   },
