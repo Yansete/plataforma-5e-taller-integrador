@@ -52,7 +52,9 @@ def servidor(tmp_path: Path) -> Iterator[str]:
         url_bd = f"sqlite:///{tmp_path / 'e2e.db'}"
 
     puerto = _puerto_libre()
-    entorno = {**os.environ, "DATABASE_URL": url_bd, "CARGAR_DATOS_DEMO": "true"}
+    # Generador por reglas y sin búsqueda en Wikipedia: las pruebas no dependen de internet ni de una clave de IA.
+    entorno = {**os.environ, "DATABASE_URL": url_bd, "CARGAR_DATOS_DEMO": "true", "IA_PROVEEDOR": "reglas",
+               "BUSQUEDA_POR_TEMA": "false"}
     registro = (tmp_path / "uvicorn.log").open("w")
     proceso = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "plataforma5e.bootstrap.app:crear_aplicacion", "--factory",

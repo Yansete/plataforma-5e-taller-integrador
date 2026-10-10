@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Plataforma 5E - Backend Hexagonal",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "paths": {
     "/api/v1/sesiones": {
@@ -381,10 +381,163 @@
         ]
       }
     },
+    "/api/v1/documentos/desde-tema": {
+      "post": {
+        "tags": [
+          "Ingesta y RAG"
+        ],
+        "summary": "Buscar un tema en Wikipedia y guardarlo como material procesado",
+        "operationId": "desde_tema_api_v1_documentos_desde_tema_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      }
+    },
+    "/api/v1/documentos/{id}/procesar": {
+      "post": {
+        "tags": [
+          "Ingesta y RAG"
+        ],
+        "summary": "Extraer el texto del documento y partirlo en fragmentos",
+        "operationId": "procesar_api_v1_documentos__id__procesar_post",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documentos/{id}/fragmentos": {
+      "get": {
+        "tags": [
+          "Ingesta y RAG"
+        ],
+        "summary": "Ver los fragmentos de un documento procesado",
+        "operationId": "fragmentos_api_v1_documentos__id__fragmentos_get",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ia": {
+      "get": {
+        "tags": [
+          "Ingesta y RAG"
+        ],
+        "summary": "Generador activo: modelo de IA o reglas",
+        "operationId": "ia_api_v1_ia_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/generaciones": {
       "post": {
         "tags": [
-          "HU-053 Generación integrada (demo)"
+          "EP-003 Generación de recursos"
         ],
         "summary": "Generar",
         "operationId": "generar_api_v1_generaciones_post",
@@ -430,7 +583,7 @@
     "/api/v1/generaciones/{generacion_id}": {
       "get": {
         "tags": [
-          "HU-053 Generación integrada (demo)"
+          "EP-003 Generación de recursos"
         ],
         "summary": "Obtener",
         "operationId": "obtener_api_v1_generaciones__generacion_id__get",
@@ -736,6 +889,30 @@
             "minLength": 1,
             "title": "Term"
           },
+          "sumilla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sumilla"
+          },
+          "logro": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logro"
+          },
           "units": {
             "items": {
               "$ref": "#/components/schemas/UnidadEntrada"
@@ -797,12 +974,27 @@
         "properties": {
           "mode": {
             "type": "string",
-            "const": "api_demo",
+            "enum": [
+              "api_demo",
+              "rag"
+            ],
             "title": "Mode"
           },
           "notice": {
             "type": "string",
             "title": "Notice"
+          },
+          "generator": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator"
           },
           "request": {
             "additionalProperties": true,
@@ -885,6 +1077,45 @@
           "password"
         ],
         "title": "Login"
+      },
+      "ResultadoEntrada": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ResultadoEntrada"
       },
       "SolicitudIntegrada": {
         "properties": {
@@ -1015,6 +1246,36 @@
         ],
         "title": "SolicitudIntegrada"
       },
+      "TemaEntrada": {
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Unitid"
+          },
+          "tema": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 3,
+            "title": "Tema"
+          },
+          "maximo": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Maximo",
+            "default": 3
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unitId",
+          "tema"
+        ],
+        "title": "TemaEntrada"
+      },
       "UnidadEntrada": {
         "properties": {
           "id": {
@@ -1033,6 +1294,21 @@
             "maxLength": 150,
             "minLength": 1,
             "title": "Title"
+          },
+          "outcomes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ResultadoEntrada"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcomes"
           }
         },
         "additionalProperties": false,

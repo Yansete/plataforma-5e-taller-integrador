@@ -1,19 +1,138 @@
-"""HU-053: selecciona ejemplos por solicitud; no implementa RAG ni reinicia recursos."""
+"""HU-053 y HU-018: genera propuestas para la revisión docente.
+
+Si la unidad del docente tiene material procesado, se recuperan sus fragmentos más
+relacionados con la solicitud y el generador (IA o reglas) redacta citándolos (RAG).
+Las unidades de demostración sin material propio siguen usando los ejemplos preparados.
+"""
+import random
 from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import uuid4
+
+from plataforma5e.application.ports.configuracion_repository import ConfiguracionRepositoryPort
 from plataforma5e.application.ports.generacion_repository import GeneracionRepositoryPort
+from plataforma5e.application.ports.generador import GeneradorRecursosPort
+from plataforma5e.application.ports.material import MaterialRepositoryPort
+from plataforma5e.application.services.redaccion import construir_contexto, normalizar_recursos
 from plataforma5e.domain.generacion import GeneracionError
+from plataforma5e.domain.recuperacion import recuperar
+
+LETRAS = 'abcdefghij'
+SIN_MATERIAL = ('Esta unidad todavía no tiene material procesado. Sube un documento o busca el tema '
+                'en «Carga de material» y vuelve a intentar.')
+
 
 class GeneracionService:
-    def __init__(self, repositorio: GeneracionRepositoryPort):
+    def __init__(self, repositorio: GeneracionRepositoryPort,
+                 configuracion: ConfiguracionRepositoryPort | None = None,
+                 material: MaterialRepositoryPort | None = None,
+                 generador: GeneradorRecursosPort | None = None,
+                 respaldo: GeneradorRecursosPort | None = None):
         self._repo = repositorio
+        self._config = configuracion
+        self._material = material
+        self._generador = generador
+        self._respaldo = respaldo
 
     def generar(self, solicitud: dict, docente: str | None = None) -> dict:
+        if docente and self._config and self._material and (self._generador or self._respaldo):
+            curso, unidad = self._curso_y_unidad(docente, solicitud['unitId'])
+            if unidad is not None:
+                fragmentos = self._material.fragmentos_de_unidad(docente, unidad['id'])
+                if fragmentos:
+                    return self._generar_con_material(solicitud, docente, curso, unidad, fragmentos)
+        return self._generar_demo(solicitud, docente)
+
+    # ------------------------------------------------------------------ material real (RAG)
+
+    def _curso_y_unidad(self, docente: str, unidad_id: str) -> tuple[dict, dict | None]:
+        for curso in self._config.cursos(docente):
+            for unidad in curso['units']:
+                if unidad['id'] == unidad_id:
+                    return curso, unidad
+        return {}, None
+
+    def _generar_con_material(self, solicitud: dict, docente: str, curso: dict, unidad: dict, fragmentos: list[dict]) -> dict:
+        if solicitud['outcomeId'] and not any(o['id'] == solicitud['outcomeId'] for o in unidad.get('outcomes', [])):
+            raise GeneracionError('RESULTADO_INVALIDO', 'El resultado de aprendizaje no pertenece a la unidad.')
+        consulta = ' '.join(filter(None, [
+            unidad.get('title', ''),
+            *(o.get('text', '') for o in unidad.get('outcomes', []) if not solicitud['outcomeId'] or o['id'] == solicitud['outcomeId']),
+            solicitud.get('instructions', ''), solicitud.get('competency', ''),
+        ]))
+        elegidos = recuperar(consulta, fragmentos, max(3, min(int(solicitud.get('topK') or 8), 12)))
+        documentos = {d['id']: d for d in self._config.documentos(docente) if d['unitId'] == unidad['id']}
+        contexto = construir_contexto(curso, unidad, solicitud, elegidos, {i: d['fileName'] for i, d in documentos.items()})
+
+        recursos, usado, aviso = [], None, None
+        if self._generador is not None:
+            try:
+                recursos = normalizar_recursos(self._generador.generar(contexto), contexto)
+                usado = self._generador
+                if not recursos:
+                    aviso = f'{self._generador.descripcion} no devolvió recursos con citas válidas del material.'
+            except Exception as exc:  # proveedor caído, límite de uso o respuesta ilegible
+                aviso = f'{self._generador.descripcion} no respondió ({str(exc)[:160]}).'
+        if not recursos and self._respaldo is not None and self._respaldo is not self._generador:
+            recursos = normalizar_recursos(self._respaldo.generar(contexto), contexto)
+            usado = self._respaldo
+            if aviso:
+                aviso += ' Se usó el generador por reglas.'
+        if not recursos:
+            detalle = f' Detalle: {aviso}' if aviso else ''
+            raise GeneracionError('EVIDENCIA_INSUFICIENTE', 'No se pudieron redactar recursos que citen el material. '
+                                  f'Prueba con otro tipo de recurso, más fragmentos o agrega material a la unidad.{detalle}')
+
+        ahora = datetime.now(timezone.utc).isoformat()
+        request = {**solicitud, 'id': f'sol-api-{uuid4()}', 'createdAt': ahora}
+        outcome = solicitud['outcomeId'] or next((o['id'] for o in unidad.get('outcomes', [])), '')
+        salida = [self._recurso(r, request, unidad['id'], outcome, usado.descripcion, ahora) for r in recursos]
+        citados = {fid for r in salida for c in r['citations'] for fid in c['fragmentIds']}
+        citados |= {fid for r in salida for o in (r['options'] or []) for fid in o['sourceFragmentIds']}
+        usados = [f for f in elegidos if f['id'] in citados]
+        docs = [documentos[i] for i in dict.fromkeys(f['documento_id'] for f in usados) if i in documentos]
+        aviso_final = f' {aviso}' if aviso else ''
+        resultado = {
+            'mode': 'rag',
+            'notice': f'Generado con {usado.descripcion} a partir de {len(elegidos)} fragmento(s) de tu material.{aviso_final}',
+            'generator': {'descripcion': usado.descripcion, 'usaIA': bool(getattr(usado, 'usa_ia', False))},
+            'request': request,
+            'resources': salida,
+            'available': len(salida),
+            'fragments': [{'id': f['id'], 'documentId': f['documento_id'], 'location': f['ubicacion'], 'unitId': unidad['id'],
+                           'outcomeId': outcome, 'text': f['texto'], 'relevance': f.get('relevancia', 0.0)} for f in usados],
+            'documents': docs,
+        }
+        self._repo.guardar(resultado, docente)
+        return resultado
+
+    @staticmethod
+    def _recurso(r: dict, request: dict, unidad_id: str, outcome: str, generador: str, ahora: str) -> dict:
+        rid = f'rec-api-{uuid4()}'
+        opciones = None
+        if r['alternativas']:
+            alternativas = list(r['alternativas'])
+            random.Random(rid).shuffle(alternativas)  # la clave no queda siempre en la misma posición
+            opciones = [{
+                'id': f'{rid}:{LETRAS[i]}', 'text': a['texto'], 'isCorrect': a['correcta'], 'feedback': a['retroalimentacion'],
+                'sourceFragmentIds': a['fragmentos'], 'decision': 'pendiente', 'discardReason': None, 'edited': False,
+                'reliabilityWarning': None,
+            } for i, a in enumerate(alternativas)]
+        return {
+            'exampleId': 'material-docente', 'unitId': unidad_id, 'outcomeId': outcome, 'stage': request['stage'],
+            'type': request['resourceType'], 'title': r['titulo'], 'body': r['contenido'], 'id': rid,
+            'requestId': request['id'], 'source': 'rag', 'generator': generador, 'options': opciones,
+            'citations': r['citas'], 'status': 'pendiente', 'edited': False, 'discardReason': None,
+            'createdAt': ahora, 'updatedAt': ahora, 'decidedAt': None,
+        }
+
+    # ------------------------------------------------------------------ ejemplos de demostración
+
+    def _generar_demo(self, solicitud: dict, docente: str | None = None) -> dict:
         catalogo = self._repo.catalogo_demo()
         unidad = next((u for u in catalogo['units'] if u['id'] == solicitud['unitId']), None)
         if unidad is None:
-            raise GeneracionError('SIN_MATERIAL_PROCESADO', 'Esta unidad no tiene material de demostración en la API. La ingesta real de PDFs sigue pendiente.')
+            raise GeneracionError('SIN_MATERIAL_PROCESADO', SIN_MATERIAL)
         if solicitud['outcomeId'] and not any(o['id'] == solicitud['outcomeId'] for o in unidad['outcomes']):
             raise GeneracionError('RESULTADO_INVALIDO', 'El resultado de aprendizaje no pertenece a la unidad.')
         disponibles = [e for e in catalogo['examples'] if e['unitId'] == solicitud['unitId'] and e['stage'] == solicitud['stage'] and e['type'] == solicitud['resourceType'] and (solicitud['outcomeId'] is None or e['outcomeId'] == solicitud['outcomeId'])]
@@ -55,3 +174,4 @@ class GeneracionService:
         if resultado is None:
             raise GeneracionError('GENERACION_NO_ENCONTRADA', 'La solicitud de generación no existe.')
         return resultado
+
