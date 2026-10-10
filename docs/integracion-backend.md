@@ -2,7 +2,9 @@
 
 **HU-053 / EN-006:** Configuración incorpora un modo API de demostración. `generationApiService` envía `POST /api/v1/generaciones`, valida la respuesta y conserva propuestas pendientes y fragmentos en el store. La API guarda cada solicitud en `generaciones_demo` con SQLAlchemy; `GET /api/v1/generaciones/{id}` permite recuperarla. La prueba técnica usa SQLite aislado; PostgreSQL no se verificó en esta entrega. El contenido es ficticio y no proviene de RAG real.
 
-Los campos de entrada se basan en `app/contracts/solicitud.py` y agregan público, competencia y modalidades. OpenAPI se publica en `/docs` del backend y en `docs/openapi.json`. Las decisiones y exportaciones de la interfaz continúan locales; la ingesta de PDFs, RAG y autenticación real siguen pendientes. Las tablas siguientes describen los puntos pendientes de integración salvo el modo API de generación implementado.
+**EP-002:** sesión demo, cursos/unidades, documentos y solicitudes se conectan al backend mediante `sessionService`, `courseService.saveConnected`, `materialService` y `configurationApiService`. Se guarda el archivo original; extracción y RAG siguen pendientes. Consulta [EP-002-registro-avance.md](EP-002-registro-avance.md) para el alcance comprobado.
+
+Los campos de entrada se basan en `app/contracts/solicitud.py` y agregan público, competencia y modalidades. OpenAPI se publica en `/docs` del backend y en `docs/openapi.json`. Las decisiones y exportaciones de la interfaz continúan locales; la ingesta de PDFs, RAG y autenticación real siguen pendientes. Las tablas siguientes conservan las propuestas iniciales; los contratos vigentes de generación y EP-002 están en `docs/openapi.json`.
 
 ## 1. Cómo está organizado hoy
 
@@ -12,7 +14,7 @@ pages/  ──lee──▶  store (useAppState)          ◀──escribe── 
 ```
 
 - `store/store.ts`: caché del cliente + persistencia en `localStorage`.
-- `services/*.ts`: única vía para leer datos del catálogo y modificar el estado. Generación puede usar la API; los demás servicios siguen locales.
+- `services/*.ts`: única vía para leer datos del catálogo y modificar el estado. Generación, sesión, cursos, material e historial pueden usar la API. Revisión, exportación e indicadores siguen locales.
 - `services/index.ts`: punto único de importación para las pantallas.
 
 **Para conectar el backend**, se reemplaza el cuerpo de cada servicio por llamadas HTTP y, con la respuesta, se
@@ -126,3 +128,23 @@ en lugar de cambiar los tipos en todo el código. Esta convención debe acordars
 - Estrategia de estado del procesamiento: sondeo periódico o eventos del servidor.
 - Límite de tamaño y tipos de documento definitivos.
 - Qué hacer con `localStorage` cuando exista servidor (probablemente solo preferencias de interfaz).
+
+## API implementada de EP-002
+
+| Método y ruta | Función |
+|---|---|
+| POST /api/v1/sesiones | Verificar cuenta demo y emitir token |
+| GET /api/v1/sesiones/actual | Consultar sesión |
+| DELETE /api/v1/sesiones/actual | Revocar token actual |
+| GET /api/v1/cursos | Cursos con sus unidades |
+| POST /api/v1/cursos | Crear curso y unidades |
+| PUT /api/v1/cursos/{id} | Editar conservando identificadores |
+| GET /api/v1/documentos | Metadatos del material propio |
+| POST /api/v1/documentos | Multipart: file y contexto JSON |
+| GET /api/v1/documentos/{id}/archivo | Descargar bytes originales |
+| DELETE /api/v1/documentos/{id} | Eliminar archivo propio |
+| GET /api/v1/solicitudes | Solicitudes exitosas del docente |
+
+Todas salvo POST /sesiones requieren `Authorization: Bearer TOKEN`. Generación acepta un token opcional para conservar compatibilidad con HU-053; cuando está presente se valida la unidad del docente y se guarda su asociación a la solicitud. Una generación asociada exige sesión para recuperarla. Las generaciones anteriores sin asociación conservan la consulta de demostración HU-053. Las rutas históricas de recursos y exportación no se incorporan a la sesión EP-002.
+
+La cuenta predeterminada puede configurarse con `EP002_DOCENTE_EMAIL` y `EP002_DOCENTE_PASSWORD` en el entorno del backend. Esta cuenta de demostración no completa la autenticación de producción HU-001. Los tokens duran ocho horas. Los esquemas EP-002 se crean con SQLAlchemy en el arranque; la prueba técnica utilizó SQLite. No hay integración nueva con pgvector.

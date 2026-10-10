@@ -9,7 +9,7 @@ class GeneracionService:
     def __init__(self, repositorio: GeneracionRepositoryPort):
         self._repo = repositorio
 
-    def generar(self, solicitud: dict) -> dict:
+    def generar(self, solicitud: dict, docente: str | None = None) -> dict:
         catalogo = self._repo.catalogo_demo()
         unidad = next((u for u in catalogo['units'] if u['id'] == solicitud['unitId']), None)
         if unidad is None:
@@ -47,7 +47,7 @@ class GeneracionService:
         if {d['id'] for d in documents} != document_ids:
             raise GeneracionError('EVIDENCIA_INSUFICIENTE', 'Falta el documento de origen de la evidencia de demostración.')
         resultado = {'mode': 'api_demo', 'notice': catalogo['notice'], 'request': request, 'resources': recursos, 'available': len(disponibles), 'fragments': [{**f, 'id': f'api-demo:{f["id"]}', 'documentId': f'api-demo:{f["documentId"]}'} for f in fragments], 'documents': [{**d, 'id': f'api-demo:{d["id"]}'} for d in documents]}
-        self._repo.guardar(resultado)
+        self._repo.guardar(resultado, docente) if docente else self._repo.guardar(resultado)
         return resultado
 
     def obtener(self, generacion_id: str) -> dict:

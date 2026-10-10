@@ -1,0 +1,81 @@
+"""API EP-002. Una cuenta de demostración; no sustituye HU-001 de autenticación."""
+import json
+from typing import Literal
+from urllib.parse import quote
+from fastapi import APIRouter, Depends, Form, UploadFile, File, Response
+from pydantic import BaseModel, ConfigDict, Field
+from plataforma5e.application.services.configuracion_service import ConfiguracionService, MAX_ARCHIVO
+from plataforma5e.domain.configuracion import ConfiguracionError
+from plataforma5e.adapters.inbound.autorizacion import obtener_autorizacion
+
+class Contrato(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+
+class Login(Contrato):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=200)
+    # La contraseña conserva espacios: pueden formar parte de ella.
+    model_config = ConfigDict(extra='forbid')
+
+class UnidadEntrada(Contrato):
+    id: str | None = None
+    title: str = Field(min_length=1, max_length=150)
+
+class CursoEntrada(Contrato):
+    code: str = Field(min_length=1, max_length=30)
+    name: str = Field(min_length=1, max_length=150)
+    term: str = Field(min_length=1, max_length=30)
+    units: list[UnidadEntrada] = Field(min_length=1, max_length=50)
+
+class ContextoDocumento(Contrato):
+    unitId: str
+    outcomeIds: list[str] = Field(default_factory=list, max_length=50)
+    documentType: str
+    suggestedStage: Literal['engage', 'explore', 'explain', 'elaborate', 'evaluate'] | None = None
+    usePermission: bool
+
+def crear_router_configuracion(servicio: ConfiguracionService):
+    router = APIRouter(prefix='/api/v1', tags=['EP-002 Configuración conectada'])
+    def docente(authorization: str | None = Depends(obtener_autorizacion)):
+        return servicio.autenticar(authorization)
+    @router.post('/sesiones')
+    def login(req: Login): return servicio.login(req.email, req.password)
+    @router.get('/sesiones/actual')
+    def actual(email=Depends(docente)): return {'email': email}
+    @router.delete('/sesiones/actual', status_code=204)
+    def logout(authorization: str | None = Depends(obtener_autorizacion)):
+        servicio.logout(authorization)
+        return Response(status_code=204)
+    @router.get('/cursos')
+    def cursos(email=Depends(docente)): return servicio.repo.cursos(email)
+    @router.post('/cursos', status_code=201)
+    def crear(req: CursoEntrada, email=Depends(docente)):
+        return servicio.guardar_curso(email, req.model_dump())
+    @router.put('/cursos/{id}')
+    def editar(id: str, req: CursoEntrada, email=Depends(docente)):
+        return servicio.guardar_curso(email, req.model_dump(), id)
+    @router.get('/documentos')
+    def documentos(email=Depends(docente)): return servicio.repo.documentos(email)
+    @router.post('/documentos', status_code=201)
+    async def cargar(file: UploadFile = File(...), contexto: str = Form(...), email=Depends(docente)):
+        try:
+            try: datos = ContextoDocumento.model_validate(json.loads(contexto)).model_dump()
+            except (ValueError, TypeError): raise ConfiguracionError('CONTEXTO_INVALIDO', 'Revisa los datos del documento.', 422)
+            contenido = await file.read(MAX_ARCHIVO + 1)
+            return servicio.registrar(email, file.filename, contenido, datos)
+        finally: await file.close()
+    @router.get('/documentos/{id}/archivo')
+    def descargar(id: str, email=Depends(docente)):
+        documento = servicio.repo.documento_obtener(email, id)
+        if not documento: raise ConfiguracionError('DOCUMENTO_NO_ENCONTRADO', 'El documento no existe.', 404)
+        datos, contenido = documento
+        return Response(contenido, media_type={'txt': 'text/plain; charset=utf-8', 'pdf': 'application/pdf', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'}[datos['kind']], headers={'Content-Disposition': "attachment; filename*=UTF-8''" + quote(datos['fileName'], safe='')})
+    @router.delete('/documentos/{id}', status_code=204)
+    def borrar(id: str, email=Depends(docente)):
+        if not servicio.repo.documento_obtener(email, id): raise ConfiguracionError('DOCUMENTO_NO_ENCONTRADO', 'El documento no existe.', 404)
+        servicio.repo.documento_borrar(email, id)
+        return Response(status_code=204)
+    @router.get('/solicitudes')
+    def historial(email=Depends(docente)):
+        return sorted(servicio.repo.historial(email), key=lambda r: r['createdAt'], reverse=True)
+    return router

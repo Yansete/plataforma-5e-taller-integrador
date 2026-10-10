@@ -1,5 +1,6 @@
 """Contrato HTTP HU-053 / EN-006. La generación de contenido sigue en modo demo."""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from plataforma5e.adapters.inbound.autorizacion import obtener_autorizacion
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
@@ -26,19 +27,22 @@ class GeneracionRespuesta(BaseModel):
     fragments: list[dict]
     documents: list[dict]
 
-def crear_router_generaciones(servicio: GeneracionService) -> APIRouter:
+def crear_router_generaciones(servicio: GeneracionService, configuracion=None) -> APIRouter:
     router = APIRouter(prefix='/api/v1/generaciones', tags=['HU-053 Generación integrada (demo)'])
     @router.post('', response_model=GeneracionRespuesta)
-    def generar(req: SolicitudIntegrada):
+    def generar(req: SolicitudIntegrada, authorization: str | None = Depends(obtener_autorizacion)):
         try:
-            return servicio.generar(req.a_dominio())
+            docente = configuracion.autenticar(authorization) if authorization and configuracion else None
+            if docente: configuracion.unidad(docente, req.unidad_id)
+            return servicio.generar(req.a_dominio(), docente)
         except GeneracionError as exc:
             return JSONResponse(status_code=400, content={'error': {'codigo': exc.codigo, 'mensaje': exc.mensaje}})
         except SQLAlchemyError:
             return JSONResponse(status_code=503, content={'error': {'codigo': 'PERSISTENCIA_NO_DISPONIBLE', 'mensaje': 'No se pudo guardar la solicitud. Comprueba la conexión de la base de datos.'}})
     @router.get('/{generacion_id}', response_model=GeneracionRespuesta)
-    def obtener(generacion_id: str):
+    def obtener(generacion_id: str, authorization: str | None = Depends(obtener_autorizacion)):
         try:
+            if configuracion: configuracion.comprobar_generacion(generacion_id, authorization)
             return servicio.obtener(generacion_id)
         except GeneracionError as exc:
             return JSONResponse(status_code=404, content={'error': {'codigo': exc.codigo, 'mensaje': exc.mensaje}})

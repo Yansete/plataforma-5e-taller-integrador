@@ -17,6 +17,7 @@ import { DOCUMENT_TYPES, MAX_FILE_SIZE_MB, STAGES, stageName } from '../data/cat
 import {
   catalogService,
   materialService,
+  sessionService,
   preferencesService,
   STEP_LABELS,
   unitShortLabel,
@@ -32,6 +33,7 @@ import { formatBytes, formatDateTime } from '../utils/format';
 const STEP_ORDER: ProcessingStep[] = ['extraccion', 'segmentacion', 'vectorizacion'];
 
 export function CargaPage() {
+  const connected = sessionService.isBackend();
   const documents = useAppState((s) => s.documents);
   const defaultUnit = useAppState((s) => s.ui.uploadDefaults.unitId);
   const units = catalogService.listUnits();
@@ -65,7 +67,7 @@ export function CargaPage() {
 
   const selectFile = (f: File | undefined) => {
     if (!f) return;
-    const info = { name: f.name, size: f.size };
+    const info = { name: f.name, size: f.size, blob: f };
     setFile(info);
     setFileError(validateFile(info));
     setErrors((e) => ({ ...e, file: undefined }));
@@ -106,8 +108,8 @@ export function CargaPage() {
     try {
       const doc = await materialService.registerDocument({ ...input, file: file! });
       clearForm();
-      setMessage({ tone: 'success', text: `«${doc.fileName}» registrado. El procesamiento simulado está en curso en la lista de abajo.` });
-      void materialService.processDocument(doc.id, { simulateFailure });
+      setMessage({ tone: 'success', text: connected ? `«${doc.fileName}» guardado en el servidor. La extracción real está pendiente.` : `«${doc.fileName}» registrado. El procesamiento simulado está en curso en la lista de abajo.` });
+      if (!connected) void materialService.processDocument(doc.id, { simulateFailure });
     } catch (err) {
       setMessage({ tone: 'warn', text: err instanceof Error ? err.message : 'No se pudo registrar el documento.' });
     } finally {
@@ -119,7 +121,7 @@ export function CargaPage() {
     if (!toRemove) return;
     const name = toRemove.fileName;
     setToRemove(null);
-    await materialService.removeDocument(toRemove.id);
+    try { await materialService.removeDocument(toRemove.id); } catch (err) { setMessage({ tone: 'warn', text: (err as Error).message }); return; }
     setMessage({ tone: 'success', text: `«${name}» se quitó de la lista.` });
   };
 
@@ -195,8 +197,7 @@ export function CargaPage() {
                   <span className="caption">{formatBytes(file.size)}</span>
                 </span>
                 <span className="caption">
-                  El archivo solo está seleccionado en tu navegador. No se ha leído, subido ni procesado. Al registrarlo se guardan
-                  únicamente su nombre, tamaño y los datos de contexto.
+                  {connected ? 'Al registrar se enviarán el archivo completo y su contexto al servidor.' : 'Al registrar se guardan solo el nombre, tamaño y contexto en este navegador.'}
                 </span>
               </div>
             )}
@@ -213,6 +214,7 @@ export function CargaPage() {
 
               <fieldset className="fieldset span-2" aria-describedby={errors.outcomeIds ? outcomesErrorId : undefined}>
                 <legend className="fieldset__legend">Resultados de aprendizaje que cubre</legend>
+                {connected && !unit?.outcomes.length && <p className="caption">Esta unidad todavía no tiene resultados de aprendizaje. Puedes asociar el material a la unidad.</p>}
                 {unit?.outcomes.map((o) => (
                   <Checkbox key={o.id} label={<><strong>{o.code}.</strong> {o.text}</>} checked={outcomeIds.includes(o.id)} onChange={(c) => toggleOutcome(o.id, c)} />
                 ))}
@@ -256,7 +258,7 @@ export function CargaPage() {
               )}
             </div>
 
-            <details className="card card--inner">
+            {!connected && <details className="card card--inner">
               <summary className="text-ui" style={{ cursor: 'pointer', minHeight: 'var(--touch-target)', display: 'flex', alignItems: 'center' }}>
                 Opciones de la demostración
               </summary>
@@ -266,11 +268,11 @@ export function CargaPage() {
                 checked={simulateFailure}
                 onChange={setSimulateFailure}
               />
-            </details>
+            </details>}
 
             <div className="btn-row">
               <Button type="submit" variant="primary" icon="upload" loading={submitting}>
-                Registrar y procesar (simulado)
+                {connected ? 'Guardar archivo en el servidor' : 'Registrar y procesar (simulado)'}
               </Button>
               <Button onClick={clearForm} disabled={submitting}>
                 Limpiar
@@ -293,16 +295,15 @@ export function CargaPage() {
               <span className="step__marker" aria-hidden="true">2</span>
               <div className="step__body">
                 <span className="title">Registro</span>
-                <span className="caption">Se guardan solo los metadatos en este navegador.</span>
+                <span className="caption">{connected ? 'Se guardan el archivo completo y sus metadatos en la base de datos del servidor.' : 'Se guardan solo los metadatos en este navegador.'}</span>
               </div>
             </li>
             <li className="step step--pending">
               <span className="step__marker" aria-hidden="true">3</span>
               <div className="step__body">
-                <span className="title">Procesamiento simulado</span>
+                <span className="title">{connected ? 'Extracción pendiente' : 'Procesamiento simulado'}</span>
                 <span className="caption">
-                  Se muestran los pasos de extracción, segmentación y vectorización, pero no se procesa nada. Tu documento queda
-                  con 0 fragmentos: la ingesta real (HU-002 a HU-004) está pendiente del backend.
+                  {connected ? 'Tu archivo queda registrado y descargable, con 0 fragmentos. No se ejecuta extracción ni generación desde su contenido.' : 'Los pasos son simulados, sin procesar el contenido. El documento queda con 0 fragmentos.'}
                 </span>
               </div>
             </li>
@@ -354,6 +355,7 @@ export function CargaPage() {
 }
 
 function DocumentRow({ doc, onRemove }: { doc: MaterialDocument; onRemove: () => void }) {
+  const [downloadError, setDownloadError] = useState('');
   const stepIndex = doc.currentStep ? STEP_ORDER.indexOf(doc.currentStep) : -1;
   const outcomes = doc.outcomeIds.map((id) => catalogService.getOutcome(id)?.code).filter(Boolean).join(', ');
   return (
@@ -393,13 +395,16 @@ function DocumentRow({ doc, onRemove }: { doc: MaterialDocument; onRemove: () =>
 
       {doc.status === 'error' && <Alert tone="warn" title="El procesamiento no terminó">{doc.errorMessage}</Alert>}
 
+      {doc.source === 'backend' && <p className="caption">Archivo guardado en el servidor · Extracción pendiente · 0 fragmentos</p>}
+      {downloadError && <Alert tone="warn" role="alert">{downloadError}</Alert>}
       <div className="btn-row">
-        {(doc.status === 'registrado' || doc.status === 'error') && (
+        {doc.source === 'backend' && <Button compact onClick={() => { setDownloadError(''); void materialService.downloadDocument(doc).catch((e) => setDownloadError(e.message)); }}>Descargar archivo</Button>}
+        {doc.source !== 'backend' && (doc.status === 'registrado' || doc.status === 'error') && (
           <Button compact icon="reset" onClick={() => void materialService.processDocument(doc.id)}>
             {doc.status === 'error' ? 'Reintentar procesamiento' : 'Procesar (simulado)'}
           </Button>
         )}
-        <Button compact variant="danger" icon="trash" onClick={onRemove} disabled={doc.status === 'procesando'}>
+        <Button compact variant="danger" icon="trash" onClick={onRemove} disabled={doc.status === 'procesando' || (sessionService.isBackend() && doc.source !== 'backend')}>
           Quitar
         </Button>
       </div>

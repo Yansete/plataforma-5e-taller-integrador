@@ -1,3 +1,5 @@
+import { configurationFetch } from './configurationApiService';
+import { sessionService } from './sessionService';
 /**
  * Carga de material (HU-002, HU-003).
  *
@@ -16,6 +18,7 @@ import type { FileKind, MaterialDocument, ProcessingStep, Stage5E } from '../typ
 import { ServiceError, wait } from './simulation';
 
 export interface LocalFileInfo {
+  blob?: File;
   name: string;
   size: number;
 }
@@ -49,7 +52,7 @@ export function validateRegistration(input: Omit<Partial<RegisterInput>, 'file'>
   const fileError = validateFile(input.file);
   if (fileError) errors.file = fileError;
   if (!input.unitId) errors.unitId = 'Elige la unidad a la que pertenece el material.';
-  if (!input.outcomeIds || input.outcomeIds.length === 0) errors.outcomeIds = 'Marca al menos un resultado de aprendizaje.';
+  if ((!input.outcomeIds || input.outcomeIds.length === 0) && (!sessionService.isBackend() || !!getState().units.find((u) => u.id === input.unitId)?.outcomes.length)) errors.outcomeIds = 'Marca al menos un resultado de aprendizaje.';
   if (!input.documentType) errors.documentType = 'Elige el tipo de documento.';
   if (!input.usePermission) errors.usePermission = 'Debes confirmar que cuentas con permiso de uso del material.';
   if (!errors.file && input.file && input.unitId) {
@@ -68,9 +71,20 @@ function patchDocument(id: string, patch: Partial<MaterialDocument>): void {
 const STEPS: ProcessingStep[] = ['extraccion', 'segmentacion', 'vectorizacion'];
 
 export const materialService = {
+  async downloadDocument(doc: MaterialDocument) {
+    const blob = await (await configurationFetch(`/documentos/${encodeURIComponent(doc.id)}/archivo`)).blob();
+    const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = doc.fileName; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
   async registerDocument(input: RegisterInput): Promise<MaterialDocument> {
     const errors = validateRegistration(input);
     if (Object.keys(errors).length > 0) throw new ServiceError('Revisa los campos marcados.');
+    if (sessionService.isBackend()) {
+      if (!input.file.blob) throw new ServiceError('Vuelve a seleccionar el archivo.');
+      const data = new FormData(); data.append('file', input.file.blob);
+      const { file: _file, ...contexto } = input; data.append('contexto', JSON.stringify(contexto));
+      const doc: MaterialDocument = await (await configurationFetch('/documentos', { method: 'POST', body: data })).json();
+      setState((s) => ({ ...s, documents: [doc, ...s.documents] })); return doc;
+    }
     await wait(300);
     const doc: MaterialDocument = {
       id: newId('doc'),
@@ -98,6 +112,7 @@ export const materialService = {
   /** Recorre los pasos del procesamiento sin procesar el archivo. */
   async processDocument(id: string, options: { simulateFailure?: boolean } = {}): Promise<void> {
     const doc = getState().documents.find((d) => d.id === id);
+    if (doc?.source === 'backend') throw new ServiceError('El archivo está guardado. La extracción real está pendiente.');
     if (!doc) throw new ServiceError('El documento ya no existe.');
     if (doc.status === 'procesando') return;
     patchDocument(id, { status: 'procesando', currentStep: STEPS[0], errorMessage: null });
@@ -123,7 +138,11 @@ export const materialService = {
   },
 
   async removeDocument(id: string): Promise<void> {
-    await wait(150);
+    if (sessionService.isBackend()) {
+      const doc = getState().documents.find((d) => d.id === id);
+      if (doc?.source !== 'backend') throw new ServiceError('Los ejemplos de demostración son de solo lectura en modo conectado.');
+      await configurationFetch(`/documentos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } else await wait(150);
     setState((s) => ({ ...s, documents: s.documents.filter((d) => d.id !== id) }));
   },
 };

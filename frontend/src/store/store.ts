@@ -11,7 +11,8 @@ import { useSyncExternalStore } from 'react';
 import type { AppState } from '../types';
 import { STATE_VERSION, createInitialState } from './initialState';
 
-export const STORAGE_KEY = 'plataforma5e.demo.v1';
+const LOCAL_STORAGE_KEY = 'plataforma5e.demo.v1';
+export let STORAGE_KEY = LOCAL_STORAGE_KEY;
 
 type Listener = () => void;
 
@@ -53,6 +54,15 @@ function writePersisted(state: AppState): void {
 
 let state: AppState = readPersisted() ?? createInitialState();
 const listeners = new Set<Listener>();
+
+// Cada modo conserva su propio catálogo y sus decisiones locales.
+export function selectSessionStore(email?: string): void {
+  STORAGE_KEY = email ? `plataforma5e.backend.${email}` : LOCAL_STORAGE_KEY;
+  const saved = readPersisted();
+  state = saved ?? createInitialState();
+  if (email && !saved) { state.resources = []; state.requests = []; state.ui.selectedResourceId = null; state.ui.generationMode = 'api_demo'; }
+  listeners.forEach((l) => l());
+}
 
 export function getState(): AppState {
   return state;

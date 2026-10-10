@@ -1,3 +1,4 @@
+import { sessionService } from './sessionService';
 /** HU-053 / EN-006: frontera HTTP. Los fallos no crean propuestas ni activan la demo local. */
 import type { Fragment, GenerationRequest, MaterialDocument, Resource } from '../types';
 export type GenerationInput = Omit<GenerationRequest, 'id' | 'createdAt'>;
@@ -46,16 +47,19 @@ export function toApiRequest(input: GenerationInput) {
   return { unidad_id: input.unitId, resultado_aprendizaje_id: input.outcomeId, etapa_5e: input.stage, tipo_recurso: input.resourceType, cantidad: input.quantity, dificultad: input.difficulty, alternativas: input.optionCount, top_k: input.topK, umbral_evidencia: input.evidenceThreshold, indicaciones: input.instructions, publico_objetivo: input.audience ?? '', competencia: input.competency ?? '', modalidades: input.modalities ?? [] };
 }
 export async function requestGeneration(input: GenerationInput): Promise<ApiGeneration> {
+  const authorization = sessionService.headers().Authorization;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch('/api/v1/generaciones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toApiRequest(input)), signal: controller.signal });
+    const response = await fetch('/api/v1/generaciones', { method: 'POST', headers: { 'Content-Type': 'application/json', ...sessionService.headers() }, body: JSON.stringify(toApiRequest(input)), signal: controller.signal });
     let data: unknown;
     try { data = await response.json(); } catch { throw new GenerationApiError('API_NO_DISPONIBLE', 'La API no respondió correctamente. Comprueba que el backend esté iniciado y vuelve a intentar.'); }
     if (!response.ok) {
+      if (response.status === 401 && sessionService.isBackend()) sessionService.expire();
       if (obj(data) && obj(data.error) && typeof data.error.codigo === 'string' && typeof data.error.mensaje === 'string') throw new GenerationApiError(data.error.codigo, data.error.mensaje);
       throw new GenerationApiError(`HTTP_${response.status}`, response.status === 422 ? 'La API rechazó los parámetros. Revisa la unidad, etapa, tipo y cantidad.' : 'No se pudo completar la solicitud. Comprueba el backend y vuelve a intentar.');
     }
+    if (authorization && authorization !== sessionService.headers().Authorization) throw new GenerationApiError('SESION_CAMBIADA', 'La sesión cambió durante la solicitud. Consulta el historial al volver a iniciar sesión.');
     return validateApiGeneration(data, input);
   } catch (error) {
     if (error instanceof GenerationApiError) throw error;

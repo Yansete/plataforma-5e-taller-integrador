@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StageCoverage } from '../components/domain';
-import { Alert, Button, ButtonLink, Card, CardHeader, Checkbox, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
+import { Alert, Button, ButtonLink, Card, CardHeader, Checkbox, ConfirmDialog, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
 import { RESOURCE_TYPES, STAGES, resourceTypeName, stageName } from '../data/catalog';
 import {
   availableExamples,
@@ -14,6 +14,8 @@ import {
 } from '../services';
 import { useAppState } from '../store/store';
 import type { Difficulty, GenerationOutcome, GenerationRequest, ResourceType, Stage5E } from '../types';
+import { sessionService } from '../services/sessionService';
+import { refreshBackendHistory } from '../services/configurationApiService';
 import { MODALITIES } from '../services/chatService';
 import { formatDateTime } from '../utils/format';
 
@@ -38,6 +40,11 @@ const DEFAULTS: ConfigForm = {
 const PENDING_HINT = 'Se registra en la solicitud; su efecto requiere el motor RAG (pendiente).';
 
 export function ConfiguracionPage() {
+  const connected = sessionService.isBackend();
+  const [confirmRequest, setConfirmRequest] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const loadHistory = () => { setHistoryError(''); void refreshBackendHistory().catch((e) => setHistoryError(e.message)); };
+  useEffect(() => { if (connected) loadHistory(); }, [connected]);
   const mode = useAppState((s) => s.ui.generationMode ?? 'local');
   const saved = useAppState((s) => s.ui.config);
   const documents = useAppState((s) => s.documents);
@@ -85,6 +92,14 @@ export function ConfiguracionPage() {
 
   return (
     <>
+      <ConfirmDialog open={confirmRequest} title="Confirmar solicitud" confirmLabel="Confirmar y solicitar" onCancel={() => setConfirmRequest(false)} onConfirm={() => { setConfirmRequest(false); void generate(); }}>
+        <p>{unit ? `Unidad ${unit.number}: ${unit.title}` : 'Selecciona una unidad'}</p>
+        <p>{stageName(form.stage)} · {resourceTypeName(form.resourceType)} · {form.quantity} recurso(s) · {form.difficulty}</p>
+        <p>Resultado de aprendizaje: {form.outcomeId ? catalogService.getOutcome(form.outcomeId)?.code : 'Todos los de la unidad'} · Alternativas: {form.optionCount} · top-k: {form.topK} · Umbral: {form.evidenceThreshold}</p>
+        <p>Público: {form.audience || 'Sin especificar'} · Competencia: {form.competency || 'Sin especificar'}</p>
+        <p>Modalidades: {(form.modalities ?? []).join(', ')} · Indicaciones: {form.instructions || 'Sin indicaciones'}</p>
+        <p>Confirma esta interpretación antes de enviarla al backend. Puedes cancelar para corregirla.</p>
+      </ConfirmDialog>
       <PageHeader
         overline="Paso 2 · Configuración de la generación"
         title="Configuración de la generación"
@@ -97,7 +112,7 @@ export function ConfiguracionPage() {
           <CardHeader title="Solicitud de generación" />
           <SelectField label="Origen de las propuestas" value={mode}
             onChange={(v) => { setResult(null); preferencesService.update('generationMode', v as 'local' | 'api_demo'); }}
-            options={[{ value: 'local', label: 'Demostración local' }, { value: 'api_demo', label: 'API de demostración' }]} disabled={busy}
+            options={[{ value: 'local', label: 'Demostración local' }, { value: 'api_demo', label: 'API de demostración' }]} disabled={busy || connected}
             hint="La API usa ejemplos preparados y guarda las solicitudes en el servidor. La generación RAG sigue pendiente." />
           {mode === 'api_demo' && <Alert title="Integración con API activa">Las propuestas se reciben del backend. Su contenido y evidencia son ficticios de demostración; las decisiones de revisión se guardan en este navegador.</Alert>}
 
@@ -105,7 +120,7 @@ export function ConfiguracionPage() {
             className="stack"
             onSubmit={(e) => {
               e.preventDefault();
-              void generate();
+              if (connected) setConfirmRequest(true); else void generate();
             }}
           >
             <div className="form-grid">
@@ -308,7 +323,8 @@ export function ConfiguracionPage() {
       </div>
 
       <Card>
-        <CardHeader title="Solicitudes recientes" description="Parámetros registrados en cada solicitud (se enviarán al backend cuando exista)." />
+        <CardHeader title="Solicitudes recientes" description={connected ? "Últimas solicitudes recuperadas del servidor con los parámetros confirmados por el docente." : "Parámetros registrados en este navegador."} actions={connected ? <Button onClick={loadHistory}>Actualizar historial</Button> : undefined} />
+        {historyError && <Alert tone="warn" role="alert">{historyError}</Alert>}
         {recentRequests.length === 0 ? (
           <EmptyState title="Aún no hay solicitudes" />
         ) : (
@@ -332,7 +348,7 @@ export function ConfiguracionPage() {
                     <td data-label="Etapa">{stageName(r.stage)}</td>
                     <td data-label="Tipo">{resourceTypeName(r.resourceType)}</td>
                     <td data-label="Cantidad" className="num">{r.quantity}</td>
-                    <td data-label="Parámetros" className="caption">{`top-k ${r.topK} · umbral ${r.evidenceThreshold.toLocaleString('es-ES', { minimumFractionDigits: 1 })} · ${r.difficulty}`}</td>
+                    <td data-label="Parámetros" className="caption">{`top-k ${r.topK} · umbral ${r.evidenceThreshold.toLocaleString('es-ES', { minimumFractionDigits: 1 })} · ${r.difficulty} · ${r.audience || 'Sin público'} · ${r.competency || 'Sin competencia'} · ${(r.modalities ?? []).join(', ')} · ${r.instructions || 'Sin indicaciones'}`}</td>
                   </tr>
                 ))}
               </tbody>

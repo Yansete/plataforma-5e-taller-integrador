@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const directory = mkdtempSync(join(tmpdir(), 'hu053-api-'));
 const database = join(directory, 'api.db').replaceAll('\\', '/');
 export default defineConfig({
-  testDir: './e2e', testMatch: 'hu053-api.spec.ts', workers: 1, reporter: 'list',
+  testDir: './e2e', testMatch: ['hu053-api.spec.ts', 'ep002-api.spec.ts'], workers: 1, reporter: 'list',
   use: { baseURL: 'http://localhost:5174', trace: 'retain-on-failure' },
   projects: [{ name: 'api-chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [

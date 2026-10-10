@@ -3,7 +3,8 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { catalogService, preferencesService, sessionService, useDemoSession } from '../services';
 import { Icon, type IconName } from './Icon';
 import { useAppState } from '../store/store';
-import { ConfirmDialog } from './ui';
+import { refreshBackendCatalog } from '../services/configurationApiService';
+import { Alert, Button, ConfirmDialog } from './ui';
 
 export const ROUTES: { to: string; label: string; icon: IconName; step?: number; title: string }[] = [
   { to: '/', label: 'Inicio', icon: 'home', title: 'Inicio del docente' },
@@ -19,6 +20,12 @@ export const ROUTES: { to: string; label: string; icon: IconName; step?: number;
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const connected = sessionService.isBackend();
+  const [ready, setReady] = useState(!connected);
+  const [apiError, setApiError] = useState('');
+  const [logoutError, setLogoutError] = useState('');
+  const loadCatalog = () => { setReady(false); setApiError(''); void refreshBackendCatalog().then(() => setReady(true)).catch((e) => setApiError(e.message)); };
+  useEffect(() => { if (connected) loadCatalog(); }, [connected]);
   const location = useLocation();
   const navigate = useNavigate();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -126,9 +133,9 @@ export function Layout() {
           </div>
 
           <div className="sidebar__footer">
-            <span>{session} (demostración)</span>
-            <button type="button" className="sidebar__reset" onClick={() => { sessionService.logout(); navigate('/login', { replace: true }); }}>Cerrar sesión</button>
-            <button type="button" className="sidebar__reset" onClick={() => setConfirmReset(true)}>
+            <span>{session} ({connected ? 'backend conectado' : 'demostración local'})</span>
+            <button type="button" className="sidebar__reset" onClick={() => { setLogoutError(''); void sessionService.logout().then(() => navigate('/login', { replace: true })).catch((e) => setLogoutError(e.message)); }}>Cerrar sesión</button>
+            <button type="button" className="sidebar__reset" onClick={() => setConfirmReset(true)} disabled={connected}>
               <Icon name="reset" />
               Restablecer demo
             </button>
@@ -139,12 +146,12 @@ export function Layout() {
           <div className="demo-banner" role="note">
             <Icon name="info" size={16} />
             <span>
-              <strong>Demostración del frontend.</strong> Los datos son de ejemplo y el procesamiento, la generación y la exportación
-              están simulados. Tus decisiones se guardan solo en este navegador.
+              {connected ? 'EP-002 conectado: sesión, cursos, archivos e historial en el servidor. La generación usa ejemplos preparados; las decisiones de revisión se guardan en este navegador.' : 'Demostración del frontend. Los datos y procesos son simulados. Tus decisiones se guardan en este navegador.'}
             </span>
           </div>
           <main id="contenido" className="content" tabIndex={-1}>
-            <Outlet />
+            {logoutError && <Alert tone="warn" role="alert">{logoutError}</Alert>}
+            {connected && !ready ? <div className="stack">{apiError ? <><Alert tone="warn" role="alert">{apiError}</Alert><Button onClick={loadCatalog}>Reintentar conexión</Button></> : <p role="status">Cargando cursos, archivos e historial del servidor…</p>}</div> : <Outlet />}
           </main>
         </div>
       </div>

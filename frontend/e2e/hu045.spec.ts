@@ -8,6 +8,8 @@ test('HU-045 sesión, cursos, unidades y persistencia', async ({ page }) => {
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
   await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Modo de acceso')).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(page.getByLabel('Correo electrónico')).toBeFocused();
   await expect.poll(() => page.getByLabel('Correo electrónico').evaluate((el) => getComputedStyle(el).outlineColor)).toBe('rgb(22, 53, 44)');
   await page.screenshot({ path: `${evidence}/01-login.png`, fullPage: true });

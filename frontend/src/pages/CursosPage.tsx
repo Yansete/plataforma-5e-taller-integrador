@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Alert, Button, ButtonLink, Card, CardHeader, PageHeader, TextField } from '../components/ui';
-import { courseService, type CourseInput } from '../services';
+import { courseService, sessionService, type CourseInput } from '../services';
 import { useAppState } from '../store/store';
 const blank = (): CourseInput => ({ code: '', name: '', term: '', units: [{ title: '' }] });
 export function CursosPage() {
@@ -8,18 +8,19 @@ export function CursosPage() {
   const units = useAppState((s) => s.units);
   const [editing, setEditing] = useState<string | undefined>();
   const [form, setForm] = useState<CourseInput>(blank);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  function submit(event: FormEvent) {
-    event.preventDefault(); setMessage('');
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setMessage(''); setBusy(true);
     try {
-      const course = courseService.save(form, editing);
+      const course = await courseService.saveConnected(form, editing);
       setMessage(`Curso ${course.code} ${editing ? 'actualizado' : 'creado'}.`);
       setEditing(undefined); setForm(blank()); setError('');
-    } catch (err) { setError((err as Error).message); }
+    } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }
   return <>
-    <PageHeader overline="Configuración del docente · HU-045" title="Cursos y unidades" description="Organiza el catálogo del prototipo. Los cambios se guardan en este navegador; aún no se envían al backend." actions={<ButtonLink to="/" icon="arrowRight">Continuar al inicio</ButtonLink>} />
+    <PageHeader overline="Configuración del docente · HU-045" title="Cursos y unidades" description={sessionService.isBackend() ? "Cursos y unidades guardados en el backend. Se recuperan al iniciar sesión." : "Organiza el catálogo local del prototipo. Los cambios se guardan en este navegador."} actions={<ButtonLink to="/" icon="arrowRight">Continuar al inicio</ButtonLink>} />
     {message && <Alert tone="success" role="status">{message}</Alert>}
     <div className="split">
       <Card>
@@ -35,7 +36,7 @@ export function CursosPage() {
           </fieldset>
           {error && <Alert tone="warn" role="alert">{error}</Alert>}
           <div className="btn-row">
-            <Button type="submit" variant="primary">{editing ? 'Guardar cambios' : 'Crear curso'}</Button>
+            <Button type="submit" variant="primary" loading={busy} disabled={busy}>{editing ? 'Guardar cambios' : 'Crear curso'}</Button>
             <Button onClick={() => { setEditing(undefined); setForm(blank()); setError(''); setMessage(''); }}>Cancelar</Button>
           </div>
         </form>

@@ -1,9 +1,18 @@
 /** HU-045: catálogo editable local. Sustituir por API de cursos cuando exista. */
+import { configurationFetch, refreshBackendCatalog, type ServerCourse } from './configurationApiService';
+import { sessionService } from './sessionService';
 import { getState, setState } from '../store/store';
 import { newId } from '../store/initialState';
 import type { Course, Unit } from '../types';
 export interface CourseInput { code: string; name: string; term: string; units: { id?: string; title: string }[] }
 export const courseService = {
+  async saveConnected(input: CourseInput, id?: string): Promise<Course> {
+    if (!sessionService.isBackend()) return this.save(input, id);
+    const response = await configurationFetch(id ? `/cursos/${encodeURIComponent(id)}` : '/cursos', { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    const course: ServerCourse = await response.json();
+    await refreshBackendCatalog();
+    return course;
+  },
   save(input: CourseInput, id?: string): Course {
     const code = input.code.trim().toUpperCase();
     const name = input.name.trim();

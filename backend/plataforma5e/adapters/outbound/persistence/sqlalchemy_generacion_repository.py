@@ -9,17 +9,25 @@ class GeneracionORM(Base):
     id = Column(String, primary_key=True)
     resultado = Column(JSON, nullable=False)
 
+class GeneracionDocenteORM(Base):
+    __tablename__ = 'ep002_generaciones_docente'
+    id = Column(String, primary_key=True)
+    docente = Column(String, nullable=False)
+
 class SQLAlchemyGeneracionRepository:
     def __init__(self):
         GeneracionORM.__table__.create(bind=engine, checkfirst=True)
+        GeneracionDocenteORM.__table__.create(bind=engine, checkfirst=True)
 
     def catalogo_demo(self) -> dict:
         path = Path(__file__).resolve().parents[1] / 'fixtures' / 'generacion_demo.json'
         return json.loads(path.read_text(encoding='utf-8'))
 
-    def guardar(self, resultado: dict) -> None:
+    def guardar(self, resultado: dict, docente: str | None = None) -> None:
         with SessionLocal() as session:
             session.add(GeneracionORM(id=resultado['request']['id'], resultado=resultado))
+            if docente:
+                session.add(GeneracionDocenteORM(id=resultado['request']['id'], docente=docente))
             session.commit()
 
     def obtener(self, generacion_id: str) -> dict | None:

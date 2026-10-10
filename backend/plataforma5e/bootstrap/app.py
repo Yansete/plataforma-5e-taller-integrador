@@ -3,6 +3,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 from fastapi import FastAPI, Response
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from plataforma5e.domain.configuracion import ConfiguracionError
+from plataforma5e.application.services.configuracion_service import ConfiguracionService
+from plataforma5e.adapters.outbound.persistence.sqlalchemy_configuracion_repository import SQLAlchemyConfiguracionRepository
+from plataforma5e.adapters.inbound.configuracion import crear_router_configuracion
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 
@@ -66,7 +72,21 @@ def crear_aplicacion() -> FastAPI:
     repositorio = SQLAlchemyRecursoRepository()
     servicio = RecursoService(repositorio)
 
-    app.include_router(crear_router_generaciones(GeneracionService(SQLAlchemyGeneracionRepository())))
+    configuracion = ConfiguracionService(SQLAlchemyConfiguracionRepository())
+    app.include_router(crear_router_configuracion(configuracion))
+    app.include_router(crear_router_generaciones(GeneracionService(SQLAlchemyGeneracionRepository()), configuracion))
+
+    @app.exception_handler(ConfiguracionError)
+    async def error_configuracion(request, exc):
+        return JSONResponse(status_code=exc.status, content={'error': {'codigo': exc.codigo, 'mensaje': exc.mensaje}})
+
+    @app.exception_handler(IntegrityError)
+    async def conflicto(request, exc):
+        return JSONResponse(status_code=409, content={'error': {'codigo': 'REGISTRO_DUPLICADO', 'mensaje': 'El registro ya existe. Actualiza la lista y revisa los datos.'}})
+
+    @app.exception_handler(SQLAlchemyError)
+    async def error_bd(request, exc):
+        return JSONResponse(status_code=503, content={'error': {'codigo': 'PERSISTENCIA_NO_DISPONIBLE', 'mensaje': 'No se pudo guardar o consultar. Comprueba la conexión de la base de datos.'}})
 
     # Manejo único de errores (C02 de EN-006)
     app.add_exception_handler(ValueError, value_error_handler)

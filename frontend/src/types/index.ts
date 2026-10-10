@@ -46,6 +46,7 @@ export type ProcessingStep = 'extraccion' | 'segmentacion' | 'vectorizacion';
 
 /** Metadatos de un documento del docente. Nunca contiene el archivo en sí. */
 export interface MaterialDocument {
+  source?: 'backend';
   id: string;
   fileName: string;
   kind: FileKind;

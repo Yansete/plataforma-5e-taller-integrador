@@ -1,10 +1,10 @@
 # Estado del proyecto
 
-**Última actualización:** 09/10/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
+**Última actualización:** 10/10/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
 
 ## Resumen
 
-Existe un frontend navegable con sesión y cursos (HU-045), solicitud por chat (HU-046), datos de demostración y servicios locales.
+Existe un frontend navegable con modo local HU-045/HU-046 y modo EP-002 conectado: sesión demo verificada en servidor, cursos y unidades persistentes, archivos reales e historial autenticado. La generación HU-053 sigue usando ejemplos ficticios.
 **Existe un backend base FastAPI con arquitectura hexagonal y adaptador SQLAlchemy**, conectado a Configuración mediante HU-053 / EN-006 en modo API de demostración. Guarda solicitudes y devuelve propuestas y fragmentos ficticios; no hay RAG real. Las decisiones docentes y la exportación siguen locales. La persistencia de esta entrega se probó con SQLite aislado, no con PostgreSQL.
 
 ## Implementado (funciona localmente en el navegador)
@@ -30,7 +30,7 @@ Existe un frontend navegable con sesión y cursos (HU-045), solicitud por chat (
 - **Evidencia de origen**: 12 fragmentos ficticios de 3 documentos ficticios.
 - **Filtro de fiabilidad**: una única advertencia fija en un distractor de ejemplo.
 - **Exportación**: registra la solicitud; no genera paquetes. El JSON descargable avisa de que no es importable.
-- **Usuario**: sesión de demostración HU-045 con credenciales públicas y sessionStorage; no hay autenticación real ni roles.
+- **Usuario**: HU-045 conserva sesión local simulada. EP-002 añade una cuenta demo comprobada por servidor, token revocable y rutas protegidas; registro de usuarios y roles de producción de HU-001 siguen pendientes.
 
 ## Indicadores: qué es real y qué no
 
@@ -42,7 +42,7 @@ Existe un frontend navegable con sesión y cursos (HU-045), solicitud por chat (
 
 ## Pendiente (fuera del alcance actual)
 
-- Backend y API REST (EN-001, TA-001). Modelo de datos definitivo (EN-002): la migración 0001 es un esquema base
+- Ampliaciones de API y modelo de datos definitivo (EN-002): la migración 0001 es un esquema base
   **provisional** creado para EN-011, que deberá ajustarse con migraciones nuevas cuando EN-002 se apruebe.
 - Vectorización real de los fragmentos (EN-013): las columnas `embedding` y `modelo_embedding` existen pero están vacías.
 - Contratos JSON de generación (EN-003): los tipos actuales son una propuesta.
@@ -110,3 +110,7 @@ Existe un frontend navegable con sesión y cursos (HU-045), solicitud por chat (
 ## Avance HU-045 del 09/10/2026
 
 Inicio de sesión simulado y catálogo editable de cursos/unidades, rutas /login y /cursos. Datos locales; sin endpoints nuevos. Migración del estado a versión 2 conserva las decisiones anteriores. Verificaciones de esta copia: build correcto, 36 pruebas unitarias y 3 recorridos Chromium superados. Capturas en docs/evidencias/HU-045; registro para Notion y límites en docs/HU-045-Notion.md. Pendiente revisión local de Silvana, publicación del código, acta Word, diapositiva y aprobación académica. No se ha realizado validación con docentes.
+
+## Avance EP-002 del 10/10/2026
+
+Configuración conectada: sesión de cuenta demo, cursos/unidades, carga multipart de archivos reales, descarga y eliminación, confirmación de solicitudes e historial persistente. Las pruebas incluyen reinicio del backend y recuperación sin caché. Los archivos no se extraen ni vectorizan. Detalle y límites en [EP-002-registro-avance.md](EP-002-registro-avance.md); instalación y evidencias en [EP-002-aplicar-cambios.md](EP-002-aplicar-cambios.md). Pendientes comprobación local de Silvana, capturas, publicación y revisión académica.

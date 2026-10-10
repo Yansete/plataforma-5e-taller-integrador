@@ -5,6 +5,382 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/sesiones": {
+      "post": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Login",
+        "operationId": "login_api_v1_sesiones_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sesiones/actual": {
+      "get": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Actual",
+        "operationId": "actual_api_v1_sesiones_actual_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_v1_sesiones_actual_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cursos": {
+      "get": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Cursos",
+        "operationId": "cursos_api_v1_cursos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Crear",
+        "operationId": "crear_api_v1_cursos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CursoEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cursos/{id}": {
+      "put": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Editar",
+        "operationId": "editar_api_v1_cursos__id__put",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CursoEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documentos": {
+      "get": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Documentos",
+        "operationId": "documentos_api_v1_documentos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Cargar",
+        "operationId": "cargar_api_v1_documentos_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_cargar_api_v1_documentos_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      }
+    },
+    "/api/v1/documentos/{id}/archivo": {
+      "get": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Descargar",
+        "operationId": "descargar_api_v1_documentos__id__archivo_get",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documentos/{id}": {
+      "delete": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Borrar",
+        "operationId": "borrar_api_v1_documentos__id__delete",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/solicitudes": {
+      "get": {
+        "tags": [
+          "EP-002 Configuración conectada"
+        ],
+        "summary": "Historial",
+        "operationId": "historial_api_v1_solicitudes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      }
+    },
     "/api/v1/generaciones": {
       "post": {
         "tags": [
@@ -43,7 +419,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
       }
     },
     "/api/v1/generaciones/{generacion_id}": {
@@ -53,6 +434,11 @@
         ],
         "summary": "Obtener",
         "operationId": "obtener_api_v1_generaciones__generacion_id__get",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
         "parameters": [
           {
             "name": "generacion_id",
@@ -311,6 +697,65 @@
   },
   "components": {
     "schemas": {
+      "Body_cargar_api_v1_documentos_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "contexto": {
+            "type": "string",
+            "title": "Contexto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "contexto"
+        ],
+        "title": "Body_cargar_api_v1_documentos_post"
+      },
+      "CursoEntrada": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "term": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Term"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/UnidadEntrada"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "term",
+          "units"
+        ],
+        "title": "CursoEntrada"
+      },
       "DecisionRequest": {
         "properties": {
           "decision": {
@@ -417,6 +862,29 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Login": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "Login"
       },
       "SolicitudIntegrada": {
         "properties": {
@@ -547,6 +1015,33 @@
         ],
         "title": "SolicitudIntegrada"
       },
+      "UnidadEntrada": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "UnidadEntrada"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -586,6 +1081,13 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "SesionDocente": {
+        "type": "http",
+        "description": "Obtén el token con POST /api/v1/sesiones. En Authorize pega solamente el token, sin escribir Bearer.",
+        "scheme": "bearer"
       }
     }
   }

@@ -10,7 +10,7 @@ const PUERTO = 5174;
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: '**/hu053-api.spec.ts',
+  testIgnore: ['**/hu053-api.spec.ts', '**/ep002-api.spec.ts'],
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
