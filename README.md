@@ -88,7 +88,7 @@ Otros comandos (dentro de `backend/`):
 | `pytest tests/unit`         | Ejecuta exclusivamente las pruebas de dominio unitarias                            |
 | `pytest tests/arquitectura` | Valida el aislamiento y las reglas de capas de la arquitectura hexagonal           |
 | `pytest tests/integration`  | Valida los repositorios y la persistencia ORM con la base de datos                 |
-| `pytest tests/e2e`          | Ejecuta las pruebas punta a punta contra PostgreSQL y exportación XML             |
+| `pytest tests/e2e`          | Ejecuta pruebas HTTP y XML; SQLite temporal por defecto, PostgreSQL configurable             |
 
 ## Cómo probar el recorrido
 
@@ -132,11 +132,10 @@ Detalles, comandos y estructura de las migraciones en [db/README.md](db/README.m
 ```
 taller-integrador/
 ├── backend/               Backend en FastAPI (Arquitectura Hexagonal)
-│   ├── app/contracts/     Modelos de validación y contratos Pydantic v2
 │   ├── plataforma5e/      Módulos del backend
 │   │   ├── domain/        Entidades nucleares y reglas pedagógicas puras
-│   │   ├── application/   Puertos (ports/) y casos de uso (use_cases/)
-│   │   ├── adapters/      Adaptadores REST (inbound) y persistencia ORM (outbound)
+│   │   ├── application/   Puertos, servicios y casos de uso
+│   │   ├── adapters/      Rutas y contratos en inbound/; persistencia y exportación en outbound/
 │   │   └── bootstrap/     Factoría de aplicación e inyección de dependencias
 │   └── tests/             Suites de pruebas (unit, arquitectura, integration, e2e)
 ├── documentos/            Documentos del curso (solo lectura)
@@ -155,15 +154,14 @@ taller-integrador/
 ├── spikes/                Experimentos aislados (no son código de producción)
 ├── docker-compose.yml     PostgreSQL + pgvector y dbmate
 ├── .env.example           Variables de entorno locales (copiar como .env)
-├── CONTEXTO.md            Contexto técnico para retomar el trabajo
 └── README.md
 ```
 
 ## Documentación
 
-* [Estado del proyecto](docs/estado-del-proyecto.md): qué funciona, qué está simulado y qué falta.
+* [Arquitectura y estado del proyecto](docs/arquitectura.md): capas, contratos, integración, límites y ejecución.
 * [Decisiones técnicas](docs/decisiones-tecnicas.md): decisiones, motivos, contradicciones y vacíos detectados.
-* [Integración con el backend](docs/integracion-backend.md): modelos, contratos propuestos y puntos de sustitución.
+* [Formatos de exportación SP-003](docs/spikes/SP-003-formatos-de-exportacion.md): Moodle XML y QTI 2.1, validación LMS pendiente.
 * [Guía de Git y GitHub](docs/guia-git.md): pasos para versionar y subir el proyecto.
 * [Especificación OpenAPI](docs/openapi.json): especificación contractual generada del backend.
 

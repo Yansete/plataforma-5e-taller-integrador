@@ -2,8 +2,8 @@
  * Modelos de datos del frontend.
  *
  * Son una PROPUESTA alineada con el backlog (EN-002, EN-003, EN-006, HU-002 a HU-021).
- * Los contratos oficiales (EN-003) aún no existen: cuando el backend los publique,
- * estos tipos deben ajustarse a ellos. Ver docs/integracion-backend.md.
+ * Los contratos 5E del backend y OpenAPI se documentan en docs/arquitectura.md.
+ * Las ampliaciones de estos tipos deben acordarse con esos contratos.
  */
 
 /** Etapas del modelo instruccional 5E (Bybee et al., 2006). */
