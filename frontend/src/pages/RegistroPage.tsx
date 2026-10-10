@@ -1,36 +1,37 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
 import { Alert, Button, TextField } from '../components/ui';
 import { errorMessage } from '../services/api';
-import { login } from '../services/sesion';
+import { register, registrationProblem } from '../services/sesion';
 import { useSession } from '../state/datos';
 import { useSlowNotice } from './useSlowNotice';
 
-export function LoginPage() {
+export function RegistroPage() {
   const session = useSession();
   const navigate = useNavigate();
-  const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? '/';
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const slow = useSlowNotice(loading);
 
-  if (session && !loading) return <Navigate to={from} replace />;
+  if (session && !loading) return <Navigate to="/" replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password) {
-      setError('Escribe tu correo y tu contraseña.');
+    const problem = registrationProblem(name, email, password, confirm);
+    if (problem) {
+      setError(problem);
       return;
     }
     setLoading(true);
     setError('');
     try {
-      await login(email.trim(), password);
-      navigate(from, { replace: true });
+      await register(name.trim(), email.trim(), password);
+      navigate('/', { replace: true });
     } catch (err) {
       setError(errorMessage(err));
       setLoading(false);
@@ -38,18 +39,19 @@ export function LoginPage() {
   };
 
   return (
-    <AuthShell title="Inicio de sesión" description="Ingresa con tu cuenta de docente.">
+    <AuthShell title="Crear cuenta" description="Regístrate para guardar tus cursos, tu material y tus recursos.">
       <form className="stack" onSubmit={submit} noValidate>
-        {from !== '/' && !error && <Alert tone="info">Inicia sesión para continuar.</Alert>}
         {error && (
           <Alert tone="warn" role="alert">
             {error}
           </Alert>
         )}
-        <TextField label="Correo electrónico" type="email" value={email} onChange={setEmail} autoComplete="email" />
-        <TextField label="Contraseña" type="password" value={password} onChange={setPassword} autoComplete="current-password" />
+        <TextField label="Nombre y apellido" value={name} onChange={setName} autoComplete="name" maxLength={100} />
+        <TextField label="Correo electrónico" type="email" value={email} onChange={setEmail} autoComplete="email" maxLength={254} />
+        <TextField label="Contraseña" type="password" value={password} onChange={setPassword} autoComplete="new-password" hint="Al menos 8 caracteres." maxLength={200} />
+        <TextField label="Repite la contraseña" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" maxLength={200} />
         <Button type="submit" variant="primary" loading={loading} className="btn--block">
-          Iniciar sesión
+          Crear cuenta
         </Button>
         {slow && (
           <p className="caption" role="status">
@@ -58,7 +60,7 @@ export function LoginPage() {
         )}
       </form>
       <p className="auth__switch">
-        ¿No tienes cuenta? <Link to="/crear-cuenta">Crear cuenta</Link>
+        ¿Ya tienes cuenta? <Link to="/entrar">Inicia sesión</Link>
       </p>
     </AuthShell>
   );

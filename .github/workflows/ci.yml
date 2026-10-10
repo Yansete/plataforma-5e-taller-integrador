@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (tipos, unitarias con cobertura, build y punta a punta)
+    name: Frontend (tipos, unitarias con cobertura, build y punta a punta con el backend)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,7 +39,7 @@ jobs:
           node -e '
             const t = require("./coverage/coverage-summary.json").total;
             const fila = (n, k) => `| ${n} | ${t[k].pct} % | ${t[k].covered} de ${t[k].total} |`;
-            console.log(["### Cobertura del frontend (servicios, almacén y utilidades)", "",
+            console.log(["### Cobertura del frontend (servicios y utilidades)", "",
               "| Medida | Cobertura | Cubiertas |", "|---|---|---|",
               fila("Líneas", "lines"), fila("Sentencias", "statements"),
               fila("Funciones", "functions"), fila("Ramas", "branches")].join("\n"));
@@ -54,9 +54,16 @@ jobs:
           if-no-files-found: ignore
       - name: Compilar
         run: npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Instalar el backend (las pruebas en navegador lo levantan con una base SQLite nueva)
+        run: pip install -e ../backend
       - name: Instalar Chromium para Playwright
         run: npx playwright install --with-deps chromium
-      - name: Pruebas de punta a punta (Playwright)
+      - name: Pruebas de punta a punta (Playwright con el backend real)
         run: npm run test:e2e
       - name: Guardar el informe de Playwright
         if: failure()

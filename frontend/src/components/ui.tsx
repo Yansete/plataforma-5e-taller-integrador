@@ -1,6 +1,6 @@
 /**
- * Componentes base del sistema de diseño (sección 5). Se implementan una sola vez
- * y se reutilizan en todas las pantallas; no crear variantes propias.
+ * Componentes base del sistema de diseño. Se implementan una sola vez y se reutilizan en todas
+ * las pantallas.
  */
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -44,11 +44,12 @@ interface ButtonLinkProps {
   icon?: IconName;
   children: ReactNode;
   compact?: boolean;
+  className?: string;
 }
 
-export function ButtonLink({ to, variant = 'secondary', icon, children, compact }: ButtonLinkProps) {
+export function ButtonLink({ to, variant = 'secondary', icon, children, compact, className }: ButtonLinkProps) {
   return (
-    <Link to={to} className={buttonClass(variant, compact)}>
+    <Link to={to} className={buttonClass(variant, compact, false, className)}>
       {icon && <Icon name={icon} />}
       {children}
     </Link>
@@ -79,15 +80,36 @@ export function CardHeader({ title, overline, description, actions, headingLevel
   );
 }
 
-export function PageHeader({ overline, title, description, actions }: { overline: string; title: string; description?: ReactNode; actions?: ReactNode }) {
+export interface Crumb {
+  label: string;
+  to?: string;
+}
+
+/** Ruta de la pantalla: «Mis cursos › RED-301 · Redes › Unidad 1». El último elemento es la pantalla actual. */
+export function Breadcrumb({ items }: { items: Crumb[] }) {
+  return (
+    <nav aria-label="Ruta" className="breadcrumb">
+      <ol>
+        {items.map((item, i) => (
+          <li key={`${item.label}-${i}`}>
+            {item.to && i < items.length - 1 ? <Link to={item.to}>{item.label}</Link> : <span aria-current={i === items.length - 1 ? 'page' : undefined}>{item.label}</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+export function PageHeader({ overline, title, description, actions, children }: { overline?: ReactNode; title: string; description?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
   return (
     <header className="page-header">
       <div className="page-header__text">
-        <span className="overline">{overline}</span>
+        {overline && <span className="overline">{overline}</span>}
         <h1 tabIndex={-1} data-page-title>
           {title}
         </h1>
         {description && <p className="muted">{description}</p>}
+        {children}
       </div>
       {actions && <div className="page-header__actions">{actions}</div>}
     </header>
@@ -103,16 +125,6 @@ export function Tag({ tone = 'neutral', icon, children }: { tone?: TagTone; icon
       {icon && <Icon name={icon} size={14} />}
       {children}
     </span>
-  );
-}
-
-export function ProgressBar({ value, max = 100, label, goal, tone = 'accent' }: { value: number; max?: number; label: string; goal?: number; tone?: 'accent' | 'warn' }) {
-  const pctValue = Math.max(0, Math.min(100, (value / max) * 100));
-  return (
-    <div className="progress" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={max} aria-valuenow={Math.round(value * 100) / 100}>
-      <div className={tone === 'warn' ? 'progress__fill progress__fill--warn' : 'progress__fill'} style={{ width: `${pctValue}%` }} />
-      {goal !== undefined && <div className="progress__goal" style={{ left: `calc(${Math.min(100, (goal / max) * 100)}% - 1px)` }} aria-hidden="true" />}
-    </div>
   );
 }
 
@@ -243,9 +255,11 @@ interface TextFieldProps {
   step?: number;
   maxLength?: number;
   autoComplete?: string;
+  placeholder?: string;
+  disabled?: boolean;
 }
 
-export function TextField({ label, value, onChange, hint, error, multiline, rows = 5, className, type = 'text', min, max, step, maxLength, autoComplete }: TextFieldProps) {
+export function TextField({ label, value, onChange, hint, error, multiline, rows = 5, className, type = 'text', min, max, step, maxLength, autoComplete, placeholder, disabled }: TextFieldProps) {
   const id = useId();
   const common = {
     id,
@@ -254,6 +268,8 @@ export function TextField({ label, value, onChange, hint, error, multiline, rows
     'aria-describedby': describedBy(id, hint, error),
     maxLength,
     autoComplete,
+    placeholder,
+    disabled,
   } as const;
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} className={className}>
@@ -290,9 +306,10 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   confirmDisabled?: boolean;
+  confirmLoading?: boolean;
 }
 
-export function ConfirmDialog({ open, title, children, confirmLabel, confirmVariant = 'primary', onConfirm, onCancel, confirmDisabled }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, children, confirmLabel, confirmVariant = 'primary', onConfirm, onCancel, confirmDisabled, confirmLoading }: ConfirmDialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -321,7 +338,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, confirmVari
           {children}
           <div className="dialog__actions">
             <Button onClick={onCancel}>Cancelar</Button>
-            <Button variant={confirmVariant} onClick={onConfirm} disabled={confirmDisabled}>
+            <Button variant={confirmVariant} onClick={onConfirm} disabled={confirmDisabled} loading={confirmLoading}>
               {confirmLabel}
             </Button>
           </div>

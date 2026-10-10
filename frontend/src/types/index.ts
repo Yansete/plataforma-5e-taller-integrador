@@ -1,24 +1,9 @@
 /**
- * Modelos de datos del frontend.
- *
- * Son una PROPUESTA alineada con el backlog (EN-002, EN-003, EN-006, HU-002 a HU-021).
- * Los contratos 5E del backend y OpenAPI se documentan en docs/arquitectura.md.
- * Las ampliaciones de estos tipos deben acordarse con esos contratos.
+ * Modelos de datos del frontend. Coinciden con las respuestas del backend (docs/openapi.json).
  */
 
-/** Etapas del modelo instruccional 5E (Bybee et al., 2006). */
+/** Etapas del modelo instruccional (Bybee et al., 2006). En pantalla se muestran como momentos de la clase. */
 export type Stage5E = 'engage' | 'explore' | 'explain' | 'elaborate' | 'evaluate';
-
-export interface Course {
-  id: string;
-  code: string;
-  name: string;
-  term: string;
-  /** Sumilla oficial del curso. La generación la usa como contexto. */
-  sumilla?: string;
-  /** Logro de aprendizaje del curso. */
-  logro?: string;
-}
 
 export interface LearningOutcome {
   id: string;
@@ -34,23 +19,22 @@ export interface Unit {
   outcomes: LearningOutcome[];
 }
 
+export interface Course {
+  id: string;
+  code: string;
+  name: string;
+  term: string;
+  sumilla?: string;
+  logro?: string;
+  units: Unit[];
+}
+
 export type FileKind = 'pdf' | 'pptx' | 'txt';
 
-/**
- * Estado de un documento en el flujo de ingesta.
- * - `seleccionado`: solo existe en el navegador (no se guarda).
- * - `registrado`: sus metadatos se guardaron; aún no se procesa.
- * - `procesando`: procesamiento SIMULADO en curso.
- * - `procesado`: procesamiento completado (simulado o, en los documentos de demostración, precargado).
- * - `error`: el procesamiento simulado falló.
- */
+/** `registrado`: guardado sin procesar · `procesado`: con fragmentos · `error`: no se pudo leer. */
 export type DocumentStatus = 'registrado' | 'procesando' | 'procesado' | 'error';
 
-export type ProcessingStep = 'extraccion' | 'segmentacion' | 'vectorizacion';
-
-/** Metadatos de un documento del docente. Nunca contiene el archivo en sí. */
 export interface MaterialDocument {
-  source?: 'backend';
   id: string;
   fileName: string;
   kind: FileKind;
@@ -58,31 +42,21 @@ export interface MaterialDocument {
   unitId: string;
   outcomeIds: string[];
   documentType: string;
-  suggestedStage: Stage5E | null;
-  usePermission: boolean;
   status: DocumentStatus;
-  currentStep: ProcessingStep | null;
   registeredAt: string;
   processedAt: string | null;
-  /** Fragmentos disponibles para recuperación. En modo servidor los calcula el backend al procesar el archivo. */
   fragmentCount: number;
   pageCount: number | null;
   errorMessage: string | null;
-  /** true si pertenece al conjunto de demostración precargado. */
-  isDemo: boolean;
-  /** Material creado desde un tema: fuente abierta, enlace y licencia. */
+  /** Material creado desde un tema: enlace y licencia de la fuente abierta. */
   origin?: { fuente: string; url: string; licencia: string; tema: string };
 }
 
-/** Fragmento (chunk) recuperable del material: de demostración o extraído del material real. */
 export interface Fragment {
   id: string;
-  documentId: string;
-  /** Página o diapositiva de origen (HU-002). */
+  orden: number;
   location: string;
   text: string;
-  unitId: string;
-  outcomeId: string;
 }
 
 export type ResourceType =
@@ -95,7 +69,6 @@ export type ResourceType =
   | 'ejercicio_aplicacion'
   | 'item_opcion_multiple';
 
-/** Afirmación del recurso con los fragmentos que la sustentan (HU-006). */
 export interface Citation {
   claim: string;
   fragmentIds: string[];
@@ -103,215 +76,105 @@ export interface Citation {
 
 export type DistractorDecision = 'pendiente' | 'aceptado' | 'descartado';
 
-export type DiscardReason =
-  | 'sin_sentido'
-  | 'tambien_correcto'
-  | 'duplicado'
-  | 'fuera_de_unidad'
-  | 'otro';
+export type DiscardReason = 'sin_sentido' | 'tambien_correcto' | 'duplicado' | 'fuera_de_unidad' | 'otro' | 'regenerado';
 
 export interface ItemOption {
   id: string;
   text: string;
   isCorrect: boolean;
   feedback: string;
-  /** Fragmento del que se originó la alternativa (HU-009). */
   sourceFragmentIds: string[];
-  /** Solo aplica a distractores. La clave no se decide por separado. */
+  /** Solo los distractores se deciden; la clave no. */
   decision: DistractorDecision;
   discardReason: DiscardReason | null;
   edited: boolean;
-  /** Advertencia simulada del filtro de fiabilidad (HU-015). */
-  reliabilityWarning: string | null;
 }
 
 export type ReviewStatus = 'pendiente' | 'aprobado' | 'descartado';
 
-/**
- * Versión anterior de un recurso (HU-054). Al regenerar, la versión vigente se guarda aquí
- * para que el docente pueda compararla o restaurarla.
- */
-export interface ResourceVersion {
-  number: number;
-  /** Ejemplo preparado del que salió esta versión (solo en la demostración). */
-  exampleId: string;
-  title: string;
-  body: string;
-  options: ItemOption[] | null;
-  citations: Citation[];
-  /** `generada`: la primera propuesta; `regenerada`: pedida con el botón Regenerar. */
-  origin: 'generada' | 'regenerada';
-  edited: boolean;
-  createdAt: string;
-  /** Origen del contenido de esa versión: ejemplos de la API, material real (rag) o ejemplo local. */
-  source?: ResourceSource;
+/** Copia del fragmento citado, guardada con el recurso al generarlo. */
+export interface Evidence {
+  id: string;
+  text: string;
+  location: string;
+  documentId: string;
+  documentName: string;
+  sourceUrl?: string | null;
+  license?: string | null;
 }
 
-/** `api_demo`: ejemplo preparado del backend. `rag`: generado a partir del material real del docente. */
-export type ResourceSource = 'api_demo' | 'rag';
+export type Difficulty = 'basica' | 'intermedia' | 'avanzada';
+
+/** Parámetros con que se pidió el recurso: «Regenerar» repite el pedido con ellos. */
+export interface GenerationParams {
+  resourceType: ResourceType;
+  stage: Stage5E;
+  outcomeId: string | null;
+  difficulty: Difficulty;
+  optionCount: number;
+  instructions: string;
+  audience?: string;
+  competency?: string;
+  modalities?: string[];
+}
 
 export interface Resource {
-  /** HU-053: origen explícito de las propuestas recibidas por HTTP. */
-  source?: ResourceSource;
-  /** Generador que redactó la propuesta (modelo de IA o reglas). Solo en `rag`. */
-  generator?: string;
   id: string;
-  /** Identificador del ejemplo preparado del que proviene (evita duplicados). */
-  exampleId: string;
-  requestId: string;
   unitId: string;
   outcomeId: string;
   stage: Stage5E;
   type: ResourceType;
   title: string;
-  /** Contenido principal. En ítems es el enunciado. Párrafos separados por línea en blanco. */
+  /** Contenido. En preguntas es el enunciado. Párrafos separados por línea en blanco. */
   body: string;
   options: ItemOption[] | null;
   citations: Citation[];
   status: ReviewStatus;
-  /** true si el docente modificó el contenido (afecta a I2: aceptación sin edición). */
   edited: boolean;
   discardReason: DiscardReason | null;
   createdAt: string;
   updatedAt: string;
   decidedAt: string | null;
-  /** Número de la versión vigente (1 = primera propuesta). HU-054. */
-  version: number;
-  /** Cómo se obtuvo la versión vigente. */
-  versionOrigin: 'generada' | 'regenerada';
-  /** Versiones anteriores, de la más reciente a la más antigua. */
-  previousVersions: ResourceVersion[];
+  evidence: Evidence[];
+  params?: GenerationParams;
+  /** `ia`: redactado por el modelo de lenguaje · `respaldo`: generador por reglas. */
+  generatorKind?: 'ia' | 'respaldo';
 }
 
-export type ReviewAction =
-  | 'aprobar'
-  | 'descartar'
-  | 'editar'
-  | 'revertir'
-  | 'aceptar_distractor'
-  | 'descartar_distractor'
-  | 'editar_distractor'
-  | 'revertir_distractor'
-  | 'regenerar'
-  | 'restaurar_version';
-
-/** Registro de decisiones de revisión (EN-006). */
-export interface ReviewLogEntry {
-  id: string;
-  resourceId: string;
-  optionId: string | null;
-  action: ReviewAction;
-  reason: DiscardReason | null;
-  user: string;
-  at: string;
-}
-
-export type Difficulty = 'basica' | 'intermedia' | 'avanzada';
-
-export interface GenerationRequest {
-  id: string;
+export interface GenerationInput {
   unitId: string;
-  /** `null` = todos los resultados de aprendizaje de la unidad. */
   outcomeId: string | null;
-  stage: Stage5E;
   resourceType: ResourceType;
   quantity: number;
   difficulty: Difficulty;
   optionCount: number;
-  topK: number;
-  evidenceThreshold: number;
   instructions: string;
-  /** HU-046: contexto confirmado por el docente; efecto pedagógico pendiente de RAG. */
-  audience?: string;
-  competency?: string;
-  modalities?: string[];
-  createdAt: string;
+  audience: string;
+  competency: string;
+  modalities: string[];
 }
 
-export type GenerationOutcome =
-  | { kind: 'ok'; created: Resource[]; skipped: number; available: number; notice?: string }
-  | { kind: 'error'; code: string; message: string }
-  | { kind: 'rechazado'; code: 'EVIDENCIA_INSUFICIENTE' | 'SIN_MATERIAL_PROCESADO'; message: string };
+export type DownloadFormat = 'moodle_xml' | 'qti21' | 'documento';
 
-/**
- * Formatos de exportación según SP-003 y HU-054: Moodle importa Moodle XML y Chamilo importa QTI 2.1.
- * Sustituyen a QTI 3.0, SCORM, Common Cartridge y GIFT de la versión anterior del prototipo.
- */
-export type ExportFormat = 'moodle_xml' | 'qti21';
-
-/** Plataformas LMS objetivo definidas en SP-003. */
-export type TargetLms = 'moodle' | 'chamilo';
-
-export type ExportStepId = 'seleccion' | 'formato' | 'empaquetado' | 'validacion' | 'importacion';
-
-export type ExportStepStatus = 'completado' | 'simulado' | 'pendiente';
-
-export interface ExportJob {
+export interface Download {
   id: string;
-  format: ExportFormat;
-  resourceIds: string[];
-  targetLms: string;
+  unitId: string;
+  format: DownloadFormat;
+  fileName: string;
+  resourceCount: number;
   createdAt: string;
-  steps: Record<ExportStepId, ExportStepStatus>;
-  /** Nombre del archivo generado (HU-054). */
-  fileName?: string;
 }
 
-/** Selecciones que se conservan entre pantallas y recargas. */
-export interface UiPreferences {
-  generationMode?: "local" | "api_demo";
-  config: Partial<Omit<GenerationRequest, 'id' | 'createdAt'>>;
-  reviewFilters: { unitId: string; stage: Stage5E | 'todas'; status: ReviewStatus | 'todos' };
-  selectedResourceId: string | null;
-  exportSelection: string[];
-  exportFormat: ExportFormat;
-  exportTargetLms: string;
-  dashboardFilters: { unitId: string; period: DashboardPeriod; scope: 'tablero' | 'todos' };
-  uploadDefaults: { unitId: string };
-}
-
-export type DashboardPeriod = 'todo' | '7dias' | 'hoy';
-
-export interface AppState {
-  apiFragments?: Fragment[];
-  apiDocuments?: MaterialDocument[];
-  version: number;
-  courses: Course[];
-  units: Unit[];
-  documents: MaterialDocument[];
-  resources: Resource[];
-  reviewLog: ReviewLogEntry[];
-  requests: GenerationRequest[];
-  exports: ExportJob[];
-  ui: UiPreferences;
-}
-
-/** Origen del valor de un indicador en el tablero. */
-export type IndicatorSource = 'local' | 'demo' | 'pendiente';
-
-export interface IndicatorDefinition {
-  code: string;
+export interface Session {
+  email: string;
   name: string;
-  definition: string;
-  goalText: string;
-  instrument: string;
-  moment: string;
-  /** Meta marcada con (*) en S2: propuesta del equipo, se recalibra con la línea base. */
-  provisionalGoal: boolean;
-  /** Indicadores que HU-021 exige en el tablero. */
-  inDashboard: boolean;
-  unit: '%' | 'min' | 'ratio' | 'num' | 'escala';
-  /** Comparación con la meta: >= (mayor es mejor), <= (menor es mejor) o rango. */
-  goal: { op: '>=' | '<='; value: number } | { op: 'rango'; min: number; max: number } | null;
+  token: string;
 }
 
-export interface IndicatorValue {
-  code: string;
-  source: IndicatorSource;
-  value: number | null;
-  /** Texto del valor listo para mostrar. */
-  display: string;
-  /** Detalle del cálculo (numerador / denominador) o explicación. */
-  detail: string;
-  meetsGoal: boolean | null;
+/** Recursos aprobados y por revisar de una unidad (GET /api/v1/resumen). */
+export interface UnitSummary {
+  courseId: string;
+  unitId: string;
+  approved: number;
+  pending: number;
 }

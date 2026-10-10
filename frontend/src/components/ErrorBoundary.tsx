@@ -11,8 +11,8 @@ interface State {
 
 /**
  * Evita la pantalla en blanco: si una pantalla falla al dibujarse, muestra un aviso y permite
- * volver al inicio o restablecer los datos de la demostración. El resto de la aplicación sigue
- * funcionando (menú, sesión). Se reinicia al cambiar de pantalla (`key` en Layout).
+ * volver a «Mis cursos» o recargar. El resto de la aplicación sigue funcionando (menú, sesión).
+ * Se reinicia al cambiar de pantalla (`key` en Layout).
  */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
@@ -30,12 +30,12 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div className="stack">
         <Alert tone="warn" title="No se pudo mostrar esta pantalla" role="alert">
-          Ocurrió un error inesperado. Tus datos guardados no se perdieron. Vuelve al inicio o recarga la página; si el
-          problema continúa, usa «Restablecer demo» en el menú.
+          Ocurrió un error inesperado. Tus datos están guardados en el servidor y no se perdieron. Vuelve a «Mis cursos»
+          o recarga la página.
         </Alert>
         <div className="btn-row">
-          <Button variant="primary" icon="home" onClick={() => window.location.assign('/')}>
-            Volver al inicio
+          <Button variant="primary" icon="book" onClick={() => window.location.assign('/')}>
+            Ir a Mis cursos
           </Button>
           <Button onClick={() => window.location.reload()}>Recargar la página</Button>
         </div>

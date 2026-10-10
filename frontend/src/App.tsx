@@ -1,42 +1,41 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { InicioPage } from './pages/InicioPage';
-import { CargaPage } from './pages/CargaPage';
-import { ConfiguracionPage } from './pages/ConfiguracionPage';
-import { RevisionPage } from './pages/RevisionPage';
-import { ExportacionPage } from './pages/ExportacionPage';
-import { IndicadoresPage } from './pages/IndicadoresPage';
-import { NoEncontradaPage } from './pages/NoEncontradaPage';
-
+import { DataProvider, useSession } from './state/datos';
+import { CursoFormPage } from './pages/CursoFormPage';
+import { CursoPage } from './pages/CursoPage';
 import { LoginPage } from './pages/LoginPage';
-import { ChatPage } from './pages/ChatPage';
-import { CursosPage } from './pages/CursosPage';
-import { SecuenciaPage } from './pages/SecuenciaPage';
-import { useDemoSession } from './services';
-function DemoSessionRequired() {
-  return useDemoSession() ? <Outlet /> : <Navigate to="/login" replace />;
+import { MisCursosPage } from './pages/MisCursosPage';
+import { NoEncontradaPage } from './pages/NoEncontradaPage';
+import { RegistroPage } from './pages/RegistroPage';
+import { UnidadPage } from './pages/unidad/UnidadPage';
+
+/** Sin sesión, las pantallas internas llevan a «Inicio de sesión» y luego regresan a donde estaba el docente. */
+function SessionRequired() {
+  const session = useSession();
+  const location = useLocation();
+  return session ? <Outlet /> : <Navigate to="/entrar" replace state={{ from: location.pathname }} />;
 }
 
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="login" element={<LoginPage />} />
-        <Route element={<DemoSessionRequired />}>
-          <Route element={<Layout />}>
-            <Route path="cursos" element={<CursosPage />} />
-            <Route index element={<InicioPage />} />
-            <Route path="carga" element={<CargaPage />} />
-            <Route path="chat" element={<ChatPage />} />
-            <Route path="configuracion" element={<ConfiguracionPage />} />
-            <Route path="secuencia" element={<SecuenciaPage />} />
-            <Route path="revision" element={<RevisionPage />} />
-            <Route path="exportacion" element={<ExportacionPage />} />
-            <Route path="indicadores" element={<IndicadoresPage />} />
-            <Route path="*" element={<NoEncontradaPage />} />
+      <DataProvider>
+        <Routes>
+          <Route path="entrar" element={<LoginPage />} />
+          <Route path="crear-cuenta" element={<RegistroPage />} />
+          <Route element={<SessionRequired />}>
+            <Route element={<Layout />}>
+              <Route index element={<MisCursosPage />} />
+              <Route path="cursos/nuevo" element={<CursoFormPage />} />
+              <Route path="cursos/:courseId" element={<CursoPage />} />
+              <Route path="cursos/:courseId/editar" element={<CursoFormPage />} />
+              <Route path="cursos/:courseId/unidades/:unitId" element={<UnidadPage />} />
+              <Route path="cursos/:courseId/unidades/:unitId/:tab" element={<UnidadPage />} />
+              <Route path="*" element={<NoEncontradaPage />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
+        </Routes>
+      </DataProvider>
     </BrowserRouter>
   );
 }
