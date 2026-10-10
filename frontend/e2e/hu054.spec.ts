@@ -122,10 +122,21 @@ test('C02 · exporta lo aprobado en Moodle XML (Moodle) y QTI 2.1 (Chamilo)', as
 
   for (const width of [1280, 820, 375]) {
     await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      { message: `ancho de página a ${width}px` }).toBe(true);
     const overflow = await page.evaluate(() => {
       const w = innerWidth;
       return [...document.querySelectorAll('body *')]
-        .filter((el) => el.getBoundingClientRect().right > w + 1)
+        .filter((el) => {
+          if (el.getBoundingClientRect().right <= w + 1) return false;
+          // La tabla puede desplazarse dentro de table-wrap; no ensancha la página.
+          const wrapper = el.closest('.table-wrap');
+          if (wrapper && getComputedStyle(wrapper).overflowX === 'auto') {
+            const bounds = wrapper.getBoundingClientRect();
+            if (bounds.left >= 0 && bounds.right <= w + 1) return false;
+          }
+          return true;
+        })
         .slice(0, 5)
         .map((el) => `${el.tagName}.${el.className} → ${Math.round(el.getBoundingClientRect().right)}px: ${(el.textContent ?? '').slice(0, 40)}`);
     });
