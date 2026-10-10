@@ -31,7 +31,7 @@ Determinar qué modelo de IA necesita cada tipo de recurso que generará el sist
   - Presupuesta **USD 40** en créditos de API para LLM y embeddings juntos.
   - Excluye del alcance el «contenido multimodal (video, audio)» y los «simuladores complejos».
 - Decisiones anteriores que afectan a esta: contrato JSON con citas por afirmación (HU-006, indicador I22 ≥ 95 %),
-  revisión docente obligatoria (HU-010) y exportación QTI 3.0 (HU-018).
+  revisión docente obligatoria (HU-010) y exportación Moodle XML / QTI 2.1 (SP-003).
 
 ## 3. Tipos de recurso: salida, capacidades y modelos
 
@@ -147,7 +147,7 @@ y conviene vigilarlo con el `usage` que devuelve cada llamada.
    No se usa para diagramas ni para nada que deba contener texto.
 3. **Gemini 3.8 Flash como segundo proveedor configurado**, por si falla Sonnet o se agota el presupuesto. Hasta fin
    de 2026 cuesta unas 3 veces menos.
-4. **Lo que hace el código, no el modelo:** el XML QTI 3.0, el paquete H5P o SCORM, las cuadrículas de juego y el
+4. **Lo que hace el código, no el modelo:** el Moodle XML y el paquete QTI 2.1, las cuadrículas de juego y el
    renderizado de Mermaid. Así el modelo solo produce contenido y no formatos estándar que puede romper.
 5. **Fuera del MVP:** video (excluido por el Charter), audio TTS (excluido; costo estimado ≈ USD 0,03 por minuto y
    medio si se aprueba) y HTML/JS libre.

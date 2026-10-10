@@ -23,7 +23,7 @@ Estados posibles de cada decisión:
 | # | Decisión | Motivo | Estado |
 |---|---|---|---|
 | B1 | PostgreSQL 17 + pgvector 0.8.1 (imagen `pgvector/pgvector:0.8.1-pg17`) | Previsto en el Project Charter; una sola base para datos relacionales y vectores. 0.8 aporta *iterative scan* para top-k con filtros | Propuesta |
-| B2 | Migraciones con dbmate (contenedor Docker), SQL puro con `migrate:up` / `migrate:down` | El lenguaje del backend no está decidido (EN-001); dbmate no depende de él ni exige instalar nada | Propuesta (confirmada por el usuario) |
+| B2 | Migraciones con dbmate (contenedor Docker), SQL puro con `migrate:up` / `migrate:down` | El backend usa Python/FastAPI; dbmate mantiene las migraciones en SQL independientes del ORM | Propuesta (confirmada por el usuario) |
 | B3 | `embedding vector(768)` nullable + `modelo_embedding` (ambos nulos o ambos presentes) | Dimensión de SP-001; la ingesta guarda el texto antes de vectorizar (EN-013); el modelo permite reindexar | Propuesta |
 | B4 | Índice HNSW con `vector_cosine_ops`, `m = 16`, `ef_construction = 64` | Coseno para embeddings normalizados; HNSW no necesita datos previos como IVFFlat; valores por defecto de pgvector hasta medir con datos reales | Propuesta |
 | B5 | `unidad_id` y `curso_id` repetidos en `fragmento`, con índice en `unidad_id` | Filtrar por unidad (HU-013) sin JOIN | Propuesta |
@@ -53,12 +53,12 @@ Estados posibles de cada decisión:
 | R5 | Descartar exige motivo: sin sentido, también correcto, duplicado, fuera de la unidad, otro | Alimenta I3 (NDR) e I5 (fiabilidad) | Propuesta |
 | R6 | Se puede devolver a revisión un recurso aprobado o descartado; deja de ser exportable | Control docente; queda registrado | Propuesta |
 | R7 | La generación no duplica un ejemplo que ya está en la cola | Evitar ruido en la demo | Tomada (solo demo) |
-| R8 | QTI, Moodle XML y GIFT solo admiten ítems; SCORM y Common Cartridge admiten todo | QTI es para ítems (HU-018); HU-019 empaqueta la secuencia | Propuesta |
+| R8 | Moodle XML para Moodle y QTI 2.1 en ZIP para Chamilo; solo ítems de opción múltiple | Catálogo actual y SP-003; QTI 3.0 y SCORM descartados | Tomada en el prototipo; importación LMS pendiente |
 | R9 | I2 = aprobados sin edición / propuestos (incluye pendientes en el denominador) | Definición literal de S2 | Tomada |
 | R10 | El filtro de periodo del tablero usa la fecha de propuesta del recurso y solo afecta a indicadores locales | Los valores de ejemplo no tienen fechas | Propuesta |
 | R11 | Tamaño máximo de archivo: 25 MB | Los documentos no lo definen | Propuesta |
 | R12 | Tipos de documento: separata, diapositivas, guía de práctica, sílabo, transcripción | Derivado de HU-002 y del Anexo B (PDF, PPTX, transcripciones) | Propuesta |
-| R13 | LMS de destino «por definir» | Depende de SP-001 (matriz de compatibilidad) | Tomada |
+| R13 | Destinos Moodle y Chamilo | SP-003 y catálogo de HU-054 | Tomada en el prototipo |
 
 ## 4. Sistema de diseño: aplicación y ajustes
 
@@ -131,8 +131,8 @@ Conclusiones:
 | C5 | Fuentes del estado del arte | S1 y el Charter piden ≥ 20 fuentes; S2 contiene 16 y declara una línea de búsqueda pendiente. Plazo de OE1: semana 5 (S1) o semana 6 (Charter) | Ninguno |
 | C6 | Color «marrón» | La etiqueta «En revisión» usa un «marrón» que no existe como token | Ver D2 |
 | C7 | Contraste | Cifras declaradas distintas a las calculadas y borde de campos insuficiente | Ver 4.1 y D1 |
-| C8 | Contratos | EN-003 (contratos JSON) no está definido | Los tipos son propuesta; ver `integracion-backend.md` |
-| C9 | LMS objetivo | No están definidos (SP-001) | Selector con «por definir» |
+| C8 | Contratos | Existen contratos 5E en adapters/inbound/contratos y OpenAPI; futuras ampliaciones deben acordarse | Ver `arquitectura.md` |
+| C9 | LMS objetivo | Moodle y Chamilo según SP-003 | Importación real pendiente en TA-006 |
 | C10 | Límites de carga | No hay tamaño máximo ni lista cerrada de tipos de documento | Ver R11 y R12 |
 | C11 | Roles | TA-001 exige roles docente/estudiante/administrador; el alcance actual no incluye autenticación | Usuario único de demostración |
 | C12 | Capacidad | Sprint 1 planifica 65 SP con capacidad de 64 SP | Ninguno |
@@ -143,3 +143,20 @@ Conclusiones:
 Implementado: sessionStorage conserva solo el identificador público de la sesión, nunca contraseñas. No autentica contra backend. courseService valida y guarda curso/unidad en el store; la versión 2 migra el estado 1 conservando decisiones. La edición mantiene identificadores, números y resultados de aprendizaje de unidades existentes; no permite eliminarlas para proteger referencias. El catálogo expone todas las unidades; el contexto global por curso queda pendiente.
 
 El token de foco cambia a `2px solid var(--color-brand-dark)` (#16352C) por la instrucción expresa de HU-023; actualiza D4 para superficies claras. El foco de la barra lateral conserva blanco por contraste. Esta implementación no implica aprobación del asesor.
+
+## ADR-005 Plantillas fijas para exportación
+
+Moodle usa Moodle XML y Chamilo usa QTI 2.1 en ZIP con `imsmanifest.xml`, según
+[SP-003](spikes/SP-003-formatos-de-exportacion.md). QTI 3.0 y SCORM quedan descartados.
+El código arma el XML y el paquete mediante plantillas fijas a partir de recursos aprobados.
+El frontend mantiene sus exportadores; el backend de demo delega Moodle XML en un adaptador
+de salida mediante `ExportadorPort`. El título se escapa y los campos HTML se conservan.
+La validación estructural no acredita importación real en un LMS; TA-006 permanece pendiente.
+
+## Limpieza hexagonal del Sprint 1
+
+Las rutas HTTP y sus contratos se agrupan en adapters/inbound; los casos de uso de revisión,
+aprobación y exportación viven en application/use_cases. Bootstrap solo conecta piezas.
+Los errores SQLAlchemy se traducen en persistencia. El correo y la clave demo se inyectan desde
+bootstrap. Dominio y aplicación no dependen de FastAPI ni SQLAlchemy; los adaptadores de entrada
+no dependen de SQLAlchemy. Las pruebas AST verifican estas reglas para todos sus módulos.
