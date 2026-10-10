@@ -1,6 +1,7 @@
 """Punto de composición de la aplicación FastAPI (Bootstrap)."""
 from __future__ import annotations
 
+import os
 
 from fastapi import FastAPI
 from plataforma5e.domain.configuracion import ConfiguracionError
@@ -34,9 +35,14 @@ def crear_aplicacion() -> FastAPI:
     repositorio = SQLAlchemyRecursoRepository()
     servicio = RecursoService(repositorio)
 
-    configuracion = ConfiguracionService(SQLAlchemyConfiguracionRepository())
+    generaciones = SQLAlchemyGeneracionRepository()
+    configuracion = ConfiguracionService(
+        SQLAlchemyConfiguracionRepository(generaciones),
+        correo=os.getenv('EP002_DOCENTE_EMAIL', 'docente@5e.demo'),
+        clave=os.getenv('EP002_DOCENTE_PASSWORD', 'Demo5E!2026'),
+    )
     app.include_router(crear_router_configuracion(configuracion))
-    app.include_router(crear_router_generaciones(GeneracionService(SQLAlchemyGeneracionRepository()), configuracion))
+    app.include_router(crear_router_generaciones(GeneracionService(generaciones), configuracion))
 
     app.add_exception_handler(ConfiguracionError, error_configuracion)
     app.add_exception_handler(RegistroDuplicado, conflicto)

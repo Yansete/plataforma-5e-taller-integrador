@@ -4,7 +4,7 @@ from plataforma5e.adapters.inbound.autorizacion import obtener_autorizacion
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
-from sqlalchemy.exc import SQLAlchemyError
+from plataforma5e.domain.errores import PersistenciaNoDisponible
 from app.contracts.solicitud import GenerationRequestModel
 from plataforma5e.application.services.generacion_service import GeneracionService
 from plataforma5e.domain.generacion import GeneracionError
@@ -37,7 +37,7 @@ def crear_router_generaciones(servicio: GeneracionService, configuracion=None) -
             return servicio.generar(req.a_dominio(), docente)
         except GeneracionError as exc:
             return JSONResponse(status_code=400, content={'error': {'codigo': exc.codigo, 'mensaje': exc.mensaje}})
-        except SQLAlchemyError:
+        except PersistenciaNoDisponible:
             return JSONResponse(status_code=503, content={'error': {'codigo': 'PERSISTENCIA_NO_DISPONIBLE', 'mensaje': 'No se pudo guardar la solicitud. Comprueba la conexión de la base de datos.'}})
     @router.get('/{generacion_id}', response_model=GeneracionRespuesta)
     def obtener(generacion_id: str, authorization: str | None = Depends(obtener_autorizacion)):

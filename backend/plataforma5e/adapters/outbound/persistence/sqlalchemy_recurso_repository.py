@@ -6,7 +6,10 @@ from plataforma5e.adapters.outbound.persistence.db import Base, engine, SessionL
 from plataforma5e.adapters.outbound.persistence.orm_models import RecursoORM, AlternativaORM
 
 
+from plataforma5e.adapters.outbound.persistence.errores import traducir_errores
+
 class SQLAlchemyRecursoRepository(RecursoRepositoryPort):
+    @traducir_errores
     def __init__(self):
         # Asegurar que las tablas existan con el engine activo
         RecursoORM.__table__.create(bind=engine, checkfirst=True)
@@ -34,16 +37,19 @@ class SQLAlchemyRecursoRepository(RecursoRepositoryPort):
             ]
         )
 
+    @traducir_errores
     def obtener_todos(self) -> List[RecursoDominio]:
         with SessionLocal() as db:
             items = db.query(RecursoORM).all()
             return [self._mapear_a_dominio(i) for i in items]
 
+    @traducir_errores
     def obtener_por_id(self, recurso_id: str) -> Optional[RecursoDominio]:
         with SessionLocal() as db:
             item = db.query(RecursoORM).filter(RecursoORM.id == recurso_id).first()
             return self._mapear_a_dominio(item) if item else None
 
+    @traducir_errores
     def guardar(self, recurso: RecursoDominio) -> RecursoDominio:
         with SessionLocal() as db:
             orm = db.query(RecursoORM).filter(RecursoORM.id == recurso.id).first()
@@ -76,6 +82,7 @@ class SQLAlchemyRecursoRepository(RecursoRepositoryPort):
             db.commit()
             return self.obtener_por_id(recurso.id)
 
+    @traducir_errores
     def reiniciar_demo(self) -> List[RecursoDominio]:
         with SessionLocal() as db:
             db.query(AlternativaORM).delete()
