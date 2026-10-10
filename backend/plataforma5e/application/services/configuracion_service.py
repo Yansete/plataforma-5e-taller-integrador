@@ -1,7 +1,6 @@
 """EP-002: sesión de cuenta demo del servidor, catálogo y archivos; sin extracción."""
 import hashlib
 import hmac
-import os
 import secrets
 import time
 from datetime import datetime, timezone
@@ -13,10 +12,9 @@ MAX_ARCHIVO = 25 * 1024 * 1024
 TIPOS = {'Separata o apuntes de clase', 'Diapositivas de clase', 'Guía de práctica', 'Sílabo de la unidad', 'Transcripción de clase'}
 
 class ConfiguracionService:
-    def __init__(self, repo: ConfiguracionRepositoryPort):
+    def __init__(self, repo: ConfiguracionRepositoryPort, correo: str, clave: str):
         self.repo = repo
-        self.correo = os.getenv('EP002_DOCENTE_EMAIL', 'docente@5e.demo').strip().lower()
-        clave = os.getenv('EP002_DOCENTE_PASSWORD', 'Demo5E!2026')
+        self.correo = correo.strip().lower()
         self._sal = secrets.token_bytes(16)
         self._clave = hashlib.pbkdf2_hmac('sha256', clave.encode(), self._sal, 200000)
 
@@ -102,3 +100,23 @@ class ConfiguracionService:
         propietario = self.repo.propietario_generacion(id)
         if propietario and self.autenticar(authorization) != propietario:
             raise ConfiguracionError('GENERACION_NO_ENCONTRADA', 'La solicitud no existe.', 404)
+
+
+    def listar_cursos(self, docente):
+        return self.repo.cursos(docente)
+
+    def listar_documentos(self, docente):
+        return self.repo.documentos(docente)
+
+    def obtener_documento(self, docente, id):
+        documento = self.repo.documento_obtener(docente, id)
+        if documento is None:
+            raise ConfiguracionError('DOCUMENTO_NO_ENCONTRADO', 'El documento no existe.', 404)
+        return documento
+
+    def borrar_documento(self, docente, id):
+        self.obtener_documento(docente, id)
+        self.repo.documento_borrar(docente, id)
+
+    def listar_solicitudes(self, docente):
+        return sorted(self.repo.historial(docente), key=lambda r: r['createdAt'], reverse=True)

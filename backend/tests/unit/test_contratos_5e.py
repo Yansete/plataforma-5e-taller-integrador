@@ -2,9 +2,10 @@
 Módulo de pruebas de integridad para contratos de generación.
 """
 
-import sys
+import pytest
+from copy import deepcopy
 from pydantic import ValidationError
-from app.contracts.evaluate import ResourceEvaluateItemModel
+from plataforma5e.adapters.inbound.contratos.evaluate import ResourceEvaluateItemModel
 
 # Caso A: Estructura válida con trazabilidad completa
 payload_valido = {
@@ -67,31 +68,27 @@ payload_invalido = {
 }
 
 
-def ejecutar_pruebas():
-    print("Iniciando validación de contratos de datos...")
-    
-    # 1. Comprobar que el caso válido es aceptado
-    try:
-        recurso = ResourceEvaluateItemModel(**payload_valido)
-        print(f"[OK] Payload válido aceptado correctamente: {recurso.id}")
-    except ValidationError as error:
-        print(f"[FALLO] El payload válido fue rechazado inesperadamente: {error}")
-        sys.exit(1)
+def test_contrato_evaluar_acepta_trazabilidad_completa():
+    recurso = ResourceEvaluateItemModel(**payload_valido)
+    assert recurso.id == "rec-001"
+    assert recurso.alternativas[0].fragmentos_origen == ["f-u2-03"]
+    assert recurso.citas[0].fragmentos == ["f-u2-03"]
 
-    # 2. Comprobar que el caso inválido es bloqueado
-    try:
+
+def test_contrato_evaluar_rechaza_recurso_sin_evidencia():
+    with pytest.raises(ValidationError) as error:
         ResourceEvaluateItemModel(**payload_invalido)
-        print("[FALLO] El contrato aceptó un recurso sin evidencia documental.")
-        sys.exit(1)
-    except ValidationError as error:
-        errores = error.errors()
-        print(f"[OK] Rechazo controlado: se detectaron {len(errores)} infracciones estructurales.")
-        for err in errores:
-            campo = " -> ".join(str(p) for p in err["loc"])
-            print(f"     Campo: {campo} | Motivo: {err['msg']}")
-
-    print("\nIntegridad de contratos verificada con éxito.")
+    campos = {e["loc"] for e in error.value.errors()}
+    assert ("citas",) in campos
+    assert ("alternativas", 0, "fragmentos_origen") in campos
 
 
-if __name__ == "__main__":
-    ejecutar_pruebas()
+@pytest.mark.parametrize("campo", ["citas", "fragmentos_origen"])
+def test_cada_alternativa_y_el_recurso_requieren_evidencia(campo):
+    datos = deepcopy(payload_valido)
+    if campo == "citas":
+        datos["citas"] = []
+    else:
+        datos["alternativas"][1]["fragmentos_origen"] = []
+    with pytest.raises(ValidationError):
+        ResourceEvaluateItemModel(**datos)

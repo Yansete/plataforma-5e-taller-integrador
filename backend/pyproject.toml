@@ -29,7 +29,7 @@ postgres = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["plataforma5e*", "app*"]
+include = ["plataforma5e*"]
 
 [tool.setuptools.package-data]
 plataforma5e = ["adapters/outbound/fixtures/*.json"]

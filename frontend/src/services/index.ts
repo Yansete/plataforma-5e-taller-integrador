@@ -1,7 +1,7 @@
 /**
  * Punto único de acceso a los servicios.
  * Para conectar el backend, sustituir la implementación de cada servicio
- * manteniendo sus firmas (ver docs/integracion-backend.md).
+ * manteniendo sus firmas (ver docs/arquitectura.md).
  */
 export { catalogService, unitLabel, unitShortLabel } from './catalogService';
 export { materialService, validateFile, validateRegistration, fileKindFromName, STEP_LABELS } from './materialService';

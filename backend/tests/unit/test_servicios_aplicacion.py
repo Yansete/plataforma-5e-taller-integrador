@@ -261,7 +261,7 @@ CORREO, CLAVE = "docente@5e.demo", "Demo5E!2026"
 @pytest.fixture(scope="module")
 def servicio_base():
     # PBKDF2 es lento a propósito: se crea una sola instancia para el módulo.
-    return ConfiguracionService(ConfiguracionRepoFalso())
+    return ConfiguracionService(ConfiguracionRepoFalso(), CORREO, CLAVE)
 
 
 @pytest.fixture

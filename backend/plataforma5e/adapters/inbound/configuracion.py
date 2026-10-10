@@ -47,7 +47,7 @@ def crear_router_configuracion(servicio: ConfiguracionService):
         servicio.logout(authorization)
         return Response(status_code=204)
     @router.get('/cursos')
-    def cursos(email=Depends(docente)): return servicio.repo.cursos(email)
+    def cursos(email=Depends(docente)): return servicio.listar_cursos(email)
     @router.post('/cursos', status_code=201)
     def crear(req: CursoEntrada, email=Depends(docente)):
         return servicio.guardar_curso(email, req.model_dump())
@@ -55,7 +55,7 @@ def crear_router_configuracion(servicio: ConfiguracionService):
     def editar(id: str, req: CursoEntrada, email=Depends(docente)):
         return servicio.guardar_curso(email, req.model_dump(), id)
     @router.get('/documentos')
-    def documentos(email=Depends(docente)): return servicio.repo.documentos(email)
+    def documentos(email=Depends(docente)): return servicio.listar_documentos(email)
     @router.post('/documentos', status_code=201)
     async def cargar(file: UploadFile = File(...), contexto: str = Form(...), email=Depends(docente)):
         try:
@@ -66,16 +66,13 @@ def crear_router_configuracion(servicio: ConfiguracionService):
         finally: await file.close()
     @router.get('/documentos/{id}/archivo')
     def descargar(id: str, email=Depends(docente)):
-        documento = servicio.repo.documento_obtener(email, id)
-        if not documento: raise ConfiguracionError('DOCUMENTO_NO_ENCONTRADO', 'El documento no existe.', 404)
-        datos, contenido = documento
+        datos, contenido = servicio.obtener_documento(email, id)
         return Response(contenido, media_type={'txt': 'text/plain; charset=utf-8', 'pdf': 'application/pdf', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'}[datos['kind']], headers={'Content-Disposition': "attachment; filename*=UTF-8''" + quote(datos['fileName'], safe='')})
     @router.delete('/documentos/{id}', status_code=204)
     def borrar(id: str, email=Depends(docente)):
-        if not servicio.repo.documento_obtener(email, id): raise ConfiguracionError('DOCUMENTO_NO_ENCONTRADO', 'El documento no existe.', 404)
-        servicio.repo.documento_borrar(email, id)
+        servicio.borrar_documento(email, id)
         return Response(status_code=204)
     @router.get('/solicitudes')
     def historial(email=Depends(docente)):
-        return sorted(servicio.repo.historial(email), key=lambda r: r['createdAt'], reverse=True)
+        return servicio.listar_solicitudes(email)
     return router

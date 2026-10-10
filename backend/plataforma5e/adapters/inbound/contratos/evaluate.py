@@ -4,7 +4,7 @@ Módulo de contratos de salida para la etapa pedagógica Evaluar (Evaluate).
 
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from app.contracts.base import FragmentCitationModel
+from plataforma5e.adapters.inbound.contratos.base import FragmentCitationModel
 
 
 class ItemOptionModel(BaseModel):

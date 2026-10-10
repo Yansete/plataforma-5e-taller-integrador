@@ -2,7 +2,7 @@
 
 Entorno de EN-011: PostgreSQL 17 con la extensión **pgvector 0.8.1**, tabla de fragmentos con embeddings de
 **768 dimensiones** (SP-001), índice HNSW por distancia coseno, índice por unidad e índice GIN para búsqueda por
-palabras en español. Todavía no hay backend: esta base solo se usa en local.
+palabras en español. Existe un backend FastAPI con SQLAlchemy. Usa SQLite por defecto; este entorno PostgreSQL se configura aparte. Ver [arquitectura y conexión](../docs/arquitectura.md).
 
 ## Requisitos
 

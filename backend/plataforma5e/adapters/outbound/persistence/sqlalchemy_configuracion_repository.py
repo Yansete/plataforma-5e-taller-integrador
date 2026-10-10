@@ -1,7 +1,7 @@
 """Cursos, archivos y sesiones persistentes. Los bytes se guardan en la misma BD."""
 from sqlalchemy import Column, String, JSON, LargeBinary, Float, UniqueConstraint, select
 from plataforma5e.adapters.outbound.persistence.db import Base, engine, SessionLocal
-from plataforma5e.adapters.outbound.persistence.sqlalchemy_generacion_repository import GeneracionORM, GeneracionDocenteORM, SQLAlchemyGeneracionRepository
+from plataforma5e.adapters.outbound.persistence.sqlalchemy_generacion_repository import GeneracionORM, GeneracionDocenteORM
 
 class SesionORM(Base):
     __tablename__ = 'ep002_sesiones'
@@ -27,64 +27,80 @@ class DocumentoORM(Base):
     contenido = Column(LargeBinary, nullable=False)
     __table_args__ = (UniqueConstraint('docente', 'unidad', 'nombre'),)
 
+from plataforma5e.adapters.outbound.persistence.errores import traducir_errores
+
 class SQLAlchemyConfiguracionRepository:
-    def __init__(self):
+    @traducir_errores
+    def __init__(self, generaciones):
+        self._generaciones = generaciones
         for tabla in (SesionORM, CursoORM, DocumentoORM, GeneracionDocenteORM):
             tabla.__table__.create(engine, checkfirst=True)
 
+    @traducir_errores
     def iniciar_catalogo(self, docente):
         with SessionLocal() as s:
             if s.scalars(select(CursoORM).where(CursoORM.docente == docente)).first():
                 return
-            unidades = SQLAlchemyGeneracionRepository().catalogo_demo()['units']
+            unidades = self._generaciones.catalogo_demo()['units']
             curso = {'id': 'curso-aed', 'code': 'ICSI-205', 'name': 'Algoritmos y Estructuras de Datos', 'term': '2026-II', 'units': unidades}
             s.add(CursoORM(docente=docente, id=curso['id'], codigo=curso['code'], datos=curso))
             s.commit()
 
+    @traducir_errores
     def sesion_guardar(self, huella, docente, vence):
         with SessionLocal() as s:
             s.add(SesionORM(huella=huella, docente=docente, vence=vence)); s.commit()
 
+    @traducir_errores
     def sesion_obtener(self, huella):
         with SessionLocal() as s:
             e = s.get(SesionORM, huella)
             return (e.docente, e.vence) if e else None
 
+    @traducir_errores
     def sesion_borrar(self, huella):
         with SessionLocal() as s:
             e = s.get(SesionORM, huella)
             if e: s.delete(e); s.commit()
 
+    @traducir_errores
     def cursos(self, docente):
         with SessionLocal() as s:
             return [e.datos for e in s.scalars(select(CursoORM).where(CursoORM.docente == docente).order_by(CursoORM.id))]
 
+    @traducir_errores
     def curso_guardar(self, docente, curso):
         with SessionLocal() as s:
             s.merge(CursoORM(docente=docente, id=curso['id'], codigo=curso['code'], datos=curso)); s.commit()
 
+    @traducir_errores
     def documentos(self, docente):
         with SessionLocal() as s:
             return [e.datos for e in s.scalars(select(DocumentoORM).where(DocumentoORM.docente == docente).order_by(DocumentoORM.id.desc()))]
 
+    @traducir_errores
     def documento_guardar(self, docente, datos, contenido):
         with SessionLocal() as s:
             s.add(DocumentoORM(id=datos['id'], docente=docente, unidad=datos['unitId'], nombre=datos['fileName'].casefold(), datos=datos, contenido=contenido)); s.commit()
 
+    @traducir_errores
     def documento_obtener(self, docente, id):
         with SessionLocal() as s:
             e = s.get(DocumentoORM, id)
             return (e.datos, e.contenido) if e and e.docente == docente else None
 
+    @traducir_errores
     def documento_borrar(self, docente, id):
         with SessionLocal() as s:
             e = s.get(DocumentoORM, id)
             if e and e.docente == docente: s.delete(e); s.commit()
 
+    @traducir_errores
     def historial(self, docente):
         with SessionLocal() as s:
             return [e.resultado['request'] for e in s.scalars(select(GeneracionORM).join(GeneracionDocenteORM, GeneracionORM.id == GeneracionDocenteORM.id).where(GeneracionDocenteORM.docente == docente).order_by(GeneracionORM.id.desc()))]
 
+    @traducir_errores
     def propietario_generacion(self, id):
         with SessionLocal() as s:
             e = s.get(GeneracionDocenteORM, id)

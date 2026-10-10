@@ -13,7 +13,7 @@ class AlternativaDominio:
     justificacion: str
     estado: str = "pendiente"  # pendiente, aceptado, editado, descartado
     citas: List[Dict[str, Any]] = field(default_factory=list)
-    fragmentos_origen: List[str] = field(default_factory=lambda: ["chunk-001"])
+    fragmentos_origen: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -24,4 +24,4 @@ class RecursoDominio:
     retroalimentacion: str
     alternativas: List[AlternativaDominio]
     estado_revision: str = "borrador"  # borrador, aprobado, rechazado
-    citas: List[Dict[str, Any]] = field(default_factory=lambda: [{"fragment_id": "chunk-001"}])
+    citas: List[Dict[str, Any]] = field(default_factory=list)
