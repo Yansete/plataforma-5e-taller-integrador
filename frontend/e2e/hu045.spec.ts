@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-const evidence = '../docs/evidencias/HU-045';
+const evidence = 'test-results/HU-045';
 mkdirSync(evidence, { recursive: true });
 test('HU-045 sesión, cursos, unidades y persistencia', async ({ page }) => {
   await page.goto('/cursos');

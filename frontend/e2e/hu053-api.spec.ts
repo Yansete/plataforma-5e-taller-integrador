@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 // Esta prueba se ejecuta con playwright.api.config.ts, que levanta ambos servidores.
-const evidence = '../docs/evidencias/HU-053';
+const evidence = 'test-results/HU-053';
 mkdirSync(evidence, { recursive: true });
 test('HU-053 solicitud HTTP real, persistencia, evidencia y fallo sin borrar decisiones', async ({ page, request }) => {
   await page.goto('/login');
