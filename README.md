@@ -1,17 +1,20 @@
-# Plataforma de generación asistida de contenido educativo — Frontend de demostración y Backend Base
+# Plataforma Docente — generación asistida de recursos educativos
 
-Proyecto del curso **Taller Integrador 1** (UPAO, 2026-II). Plataforma que, a partir del material del docente, propone
-recursos para una secuencia didáctica del modelo **5E**, con **revisión docente obligatoria**, **trazabilidad a la
-evidencia de origen** y exportación de lo aprobado a **Moodle (Moodle XML)** y **Chamilo (QTI 2.1)**.
+Proyecto del curso **Taller Integrador 1** (UPAO, 2026-II). A partir del material del docente, la plataforma propone
+recursos para cada momento de la clase, con **revisión docente obligatoria**, **trazabilidad a la evidencia de origen** y
+descarga de lo aprobado para **Moodle (Moodle XML)**, **Chamilo (QTI 2.1)** o como **documento de la unidad**.
 
-> **Estado actual:** frontend interactivo y backend hexagonal (FastAPI y SQLAlchemy). En modo servidor el sistema procesa el
-> material real del docente (PDF, PPTX o TXT, o artículos de Wikipedia buscados por tema), recupera los fragmentos
-> relacionados y genera recursos de las cinco etapas 5E que citan su evidencia, con IA si hay clave o con reglas si no.
-> La base vectorial con pgvector (EN-011) está lista para la búsqueda por significado del Sprint 2.
+> **Estado actual:** sistema completo con base de datos. Cada docente crea su cuenta, registra sus cursos y unidades, sube su
+> material (PDF, PPTX o TXT) o busca el tema en una fuente abierta (Wikipedia en español, licencia CC BY-SA 4.0), y genera
+> recursos que citan los fragmentos de ese material (RAG), con IA si el servidor tiene clave o con reglas si no. La revisión,
+> las decisiones y el historial de descargas se guardan en el servidor.
+>
+> Internamente cada tipo de recurso corresponde a una etapa del modelo instruccional **5E** (Bybee et al., 2006); en la
+> interfaz se muestran como momentos de la clase: *Para iniciar la clase, Para explorar, Para explicar, Para aplicar y Para evaluar*.
 
 Enlace: https://plataforma-5e-taller-integrador.vercel.app/
 
-## Demo rápida
+## Ejecutar en local
 
 Dos terminales desde la raíz del repositorio. El backend usa SQLite por defecto (no requiere Docker).
 
@@ -28,9 +31,9 @@ npm install
 npm run dev
 ```
 
-Abre [http://localhost:5173](http://localhost:5173) e inicia sesión con `docente@5e.demo` / `Demo5E!2026` (cuenta pública de
-demostración). En **Modo de acceso** elige **Servidor de la plataforma (backend)** para guardar cursos, archivos e historial en
-el backend, o **Prototipo local** para usar solo el navegador (no necesita la terminal 1).
+Abre [http://localhost:5173](http://localhost:5173), elige **Crear cuenta** y regístrate con tu nombre, correo y una
+contraseña de al menos 8 caracteres. Todo se guarda en la base del backend (`backend/demo.db` con SQLite, o la que
+indique `DATABASE_URL`).
 
 ## Requisitos
 
@@ -67,7 +70,8 @@ Otros comandos (dentro de `frontend/`):
 | `npm run build`     | Comprueba los tipos y genera la versión de producción en`frontend/dist/`                                       |
 | `npm run preview`   | Sirve la versión de producción en[http://localhost:4173](http://localhost:4173) (ejecuta antes `npm run build`) |
 | `npm run typecheck` | Solo comprueba los tipos de TypeScript                                                                             |
-| `npm test`          | Ejecuta las pruebas automáticas de los servicios                                                                  |
+| `npm test`          | Ejecuta las pruebas unitarias de los servicios (`npm run test:cobertura` con cobertura)                          |
+| `npm run test:e2e`  | Recorre la plataforma en Chromium con el backend real (necesita el backend instalado; ver [docs/pruebas.md](docs/pruebas.md)) |
 
 ### Backend
 
@@ -95,26 +99,24 @@ Otros comandos (dentro de `backend/`):
 | `pytest tests/integration`  | Valida los repositorios y la persistencia ORM con la base de datos                 |
 | `pytest tests/e2e`          | Ejecuta pruebas HTTP y XML; SQLite temporal por defecto, PostgreSQL configurable             |
 
-## Cómo probar el recorrido
+## Cómo se usa
 
-El menú lateral sigue los pasos del docente. Cada pantalla tiene un botón para avanzar al siguiente.
+1. **Crear cuenta** o **Iniciar sesión**.
+2. **Mis cursos → Nuevo curso**: código, nombre, periodo, sumilla, logro y las unidades con sus resultados de aprendizaje
+   (uno por línea; los códigos RA1.1, RA1.2… se ponen solos). Desde «Editar» también se puede **borrar el curso** completo.
+3. **Entrar al curso → Abrir unidad.** Cada unidad tiene cuatro pestañas, en el orden de trabajo:
+   1. **Material**: sube un PDF, PPTX o TXT, o **busca el tema**. El servidor extrae el texto y lo parte en fragmentos
+      («Ver fragmentos» muestra lo que la generación puede citar).
+   2. **Generación**: **Elegir opciones** (qué recurso, agrupado por momento de la clase; resultado de aprendizaje, cantidad,
+      dificultad y alternativas) o **Escribir pedido** (la plataforma muestra cómo entendió el pedido y envía el texto
+      completo como indicación).
+   3. **Revisión**: cada recurso con la evidencia que cita. Acepta, edita o descarta cada distractor (con motivo), aprueba,
+      regenera (la versión anterior queda en «Descartados») o descarta el recurso. Todo se guarda en el servidor.
+   4. **Exportación**: elige los recursos aprobados y descarga el archivo para **Moodle** (.xml), **Chamilo** (.zip) o el
+      **documento de la unidad** (.html, con todos los tipos de recurso y su evidencia). El historial de descargas se guarda
+      y se puede borrar.
 
-1. **Cursos y unidades**: crea o edita un curso y sus unidades. Luego «Continuar a carga de material».
-2. **Carga de material** (paso 1): registra un PDF, PPTX o TXT con su contexto. En modo backend el servidor extrae el texto y
-   lo parte en fragmentos («Ver fragmentos» muestra lo que la generación puede citar). Sin material propio, «Busca el tema»
-   trae artículos de Wikipedia y los procesa igual.
-3. **Solicitud** (paso 2): pide recursos con los **selectores** de Configuración o con la **solicitud por chat**, que muestra
-   la interpretación para que la corrijas antes de continuar. En modo backend se genera con tu material; en el prototipo
-   local, con ejemplos preparados.
-4. **Secuencia 5E** (paso 3): tablero con las cinco etapas de la unidad, sus recursos y su estado de revisión.
-5. **Revisión docente** (paso 4): revisa cada recurso con la evidencia citada. Acepta, edita o descarta cada distractor (el
-   descarte pide un motivo) y aprueba. «Regenerar» propone otra versión y conserva la anterior, que puedes restaurar.
-6. **Exportación** (paso 5): elige **Moodle** (Moodle XML) o **Chamilo** (paquete QTI 2.1 en ZIP), exporta los ítems aprobados y
-   descarga el archivo. «Descargar secuencia (.html)» reúne todos los recursos aprobados, de cualquier tipo, con su evidencia.
-7. **Indicadores**: valores calculados con tus decisiones, ejemplos y pendientes.
-8. **Restablecer demo** (barra lateral): vuelve al estado inicial.
-
-Tus decisiones se conservan al recargar la página (F5). Con la ventana estrecha, la barra lateral se convierte en un menú.
+Con la ventana estrecha, el menú lateral se abre con el botón «Menú».
 
 ## Base de datos local (PostgreSQL + pgvector) y Almacenamiento
 
@@ -132,7 +134,7 @@ Detalles, comandos y estructura de las migraciones en [db/README.md](db/README.m
 ### Dónde se guardan los datos y archivos
 
 * **Datos y Embeddings (PostgreSQL):** La información relacional (recursos pedagógicos, opciones, revisiones) e índices vectoriales de los fragmentos se almacenan en el contenedor de **PostgreSQL 17** gestionado por Docker, persistiendo en el volumen local `datos-postgres`.
-* **Archivos del docente y fragmentos:** en modo backend, los PDF, PPTX y TXT y sus fragmentos se guardan en la base de datos del backend (SQLite por defecto o PostgreSQL con `DATABASE_URL`). Los embeddings en pgvector son el siguiente paso (EN-013).
+* **Cuentas, cursos, archivos, fragmentos, recursos revisados e historial de descargas:** en la base de datos del backend (SQLite por defecto o PostgreSQL con `DATABASE_URL`; en producción, Neon). Las contraseñas se guardan cifradas (PBKDF2). Los embeddings en pgvector son el siguiente paso (EN-013).
 
 ## Estructura
 
@@ -149,12 +151,12 @@ taller-integrador/
 ├── db/                    Base de datos local: migraciones (dbmate), esquema y verificación
 ├── docs/                  Documentación técnica y especificación OpenAPI (openapi.json)
 ├── frontend/              Aplicación React + TypeScript + Vite
+│   ├── e2e/               Pruebas de punta a punta (Playwright) con el backend real
 │   └── src/
-│       ├── components/    Componentes reutilizables (sistema de diseño)
-│       ├── pages/         Pantallas del recorrido (+ página 404)
-│       ├── services/      Servicios: llaman al backend o simulan lo que aún no existe
-│       ├── store/         Estado local y persistencia en localStorage
-│       ├── data/          Datos de demostración y catálogos
+│       ├── components/    Componentes reutilizables (sistema de diseño) y marco de la aplicación
+│       ├── pages/         Pantallas: inicio de sesión, crear cuenta, cursos, curso y unidad (4 pestañas)
+│       ├── services/      Llamadas al backend y reglas del cliente (revisión, pedido escrito, archivos de descarga)
+│       ├── state/         Sesión y datos compartidos entre pantallas
 │       ├── types/         Modelos de datos
 │       ├── styles/        tokens.css (variables) y base.css
 │       └── utils/         Formato de fechas y números
@@ -176,8 +178,8 @@ IA_MODELO=gemini-3.8-flash # opcional
 ```
 
 `GET /api/v1/ia` indica qué generador está activo. Si el proveedor falla (clave inválida o límite de uso), la generación
-usa el generador por reglas y lo avisa. El despliegue completo (Vercel, Render y Neon) está en
-[docs/despliegue.md](docs/despliegue.md).
+usa el generador por reglas, la pantalla lo avisa y el motivo queda en los registros del servidor
+(«Generación con respaldo: …»). El despliegue completo (Vercel, Render y Neon) está en [docs/despliegue.md](docs/despliegue.md).
 
 ## Documentación
 

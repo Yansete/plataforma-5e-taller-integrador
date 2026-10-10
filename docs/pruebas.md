@@ -1,6 +1,6 @@
 # Pruebas del proyecto
 
-**Responsable:** Juan Alegria (TA-001, TA-007, TA-008) · **Última actualización:** 10/10/2026
+**Responsable:** Juan Alegria (TA-001, TA-007, TA-008) · **Última actualización:** 10/10/2026 (noche)
 
 Este documento responde a la pregunta del asesor: *«Si van a hacer casos de prueba, por ejemplo una prueba
 unitaria, ¿cuál es el directorio?»*. Cada tipo de prueba tiene su carpeta y las pruebas corren solas en GitHub
@@ -20,6 +20,7 @@ backend/tests/
 │   ├── test_material_y_recuperacion.py          Ingesta: limpiar y fragmentar el texto; búsqueda de evidencia (BM25)
 │   ├── test_material_service.py                 Procesar documentos y crear material desde un tema
 │   ├── test_generacion_con_material.py          Generación con el material del docente: citas, respaldo, validación
+│   ├── test_cuentas_y_revision.py               Crear cuenta, borrar curso, revisión guardada, resumen e historial
 │   └── test_adaptadores_material_ia.py          Lectura de PDF, PPTX y TXT; Wikipedia e IA con HTTP simulado;
 │                                                generador por reglas
 ├── arquitectura/            Vigila la regla de dependencia entre las capas hexagonales (análisis del código)
@@ -32,14 +33,15 @@ backend/tests/
 │   ├── test_configuracion_ep002.py    Configuración del docente (EP-002)
 │   ├── test_generacion_hu053.py       Generación desde la configuración (HU-053)
 │   ├── test_material_real.py          Material real: subir, procesar, ver fragmentos y generar con citas
+│   ├── test_cuentas_y_revision.py     Cuenta nueva → curso → material → generación → revisión → descargas → borrado
 │   └── test_errores_recursos.py       Errores de la API de recursos
 └── data/                    Archivos de referencia (muestra_moodle_verificada.xml)
 
 frontend/
-├── src/**/*.test.ts         Pruebas unitarias (vitest), junto al código que prueban
-└── e2e/*.spec.ts            Punta a punta en el navegador (Playwright + Chromium)
-    ├── recorrido, hu045, hu046, hu054             Prototipo con datos de demostración (corren en la CI)
-    └── hu053-api, ep002-api, material-real-api    Interfaz contra el backend real (aún no corren en la CI)
+├── src/services/*.test.ts   Pruebas unitarias (vitest), junto al código que prueban
+├── src/test/fixtures.ts     Datos de prueba y respuestas simuladas del servidor
+└── e2e/plataforma.spec.ts   Punta a punta en el navegador (Playwright + Chromium) con el backend real:
+                             inicio de sesión, recorrido completo del docente y menú en el celular
 ```
 
 | Tipo | Qué comprueba | Dónde | Comando |
@@ -48,8 +50,7 @@ frontend/
 | Arquitectura | Que las capas respeten la regla de dependencia | `backend/tests/arquitectura` | `pytest tests/arquitectura` |
 | Integración | Los adaptadores de persistencia con una base real | `backend/tests/integration` | `pytest tests/integration` |
 | Punta a punta (backend) | Historias completas contra el servidor real y fidelidad del XML exportado (I19) | `backend/tests/e2e` | `pytest tests/e2e` |
-| Punta a punta (frontend) | El recorrido del docente en el navegador | `frontend/e2e` | `npm run test:e2e` |
-| Punta a punta (sistema completo) | La interfaz contra el backend real, desde el curso hasta la descarga | `frontend/e2e/*-api.spec.ts` | `npm run test:api:e2e` |
+| Punta a punta (sistema completo) | El recorrido del docente en el navegador contra el backend real, de crear la cuenta a la descarga | `frontend/e2e` | `npm run test:e2e` |
 | Cobertura (caja blanca) | Qué parte del código ejecutan las pruebas; falla si baja del umbral | La CI y `frontend/coverage/` | `npm run test:cobertura` · `pytest --cov` |
 | Prueba manual con IA real | Que el proveedor configurado responda en el sistema publicado | Sistema desplegado | Ver «Prueba manual después del despliegue» |
 | Caja negra, carga, concurrencia y disponibilidad | Sistema desplegado y bajo carga | Sprint 2 (TA-005) | — |
@@ -86,13 +87,12 @@ Frontend (desde `frontend/`):
 npm install
 npm test                          # unitarias
 npx playwright install chromium   # solo la primera vez
-npm run test:e2e                  # navegador con datos de demostración (levanta Vite en el puerto 5174)
-npm run test:api:e2e              # navegador contra el backend real (levanta Vite y uvicorn)
+npm run test:e2e                  # navegador contra el backend real (levanta uvicorn en el 8765 y Vite en el 5174)
 ```
 
-`test:api:e2e` usa el Python que tenga instalado el backend. Si no es el `python` por defecto, indícalo con la
-variable `HU053_PYTHON` (por ejemplo, la ruta del Python del entorno virtual de `backend/`). El recorrido completo
-(`material-real-api.spec.ts`) guarda capturas y la secuencia descargada en `frontend/test-results/material-real/`.
+`test:e2e` usa el Python que tenga instalado el backend (`pip install -e ../backend`) y una base SQLite nueva en la
+carpeta temporal, así que no toca tus datos. Si ese Python no es el `python` por defecto, indícalo con la variable
+`PYTHON`; en PowerShell, con el entorno del backend: `$env:PYTHON="..\backend\.venv\Scripts\python.exe"; npm run test:e2e`.
 
 Revisar un XML antes de importarlo en Moodle (desde `backend/`):
 
@@ -107,8 +107,8 @@ mira el código por dentro y señala lo que ninguna prueba recorre.
 
 | Parte | Qué se mide | Umbral mínimo | Medido el 10/10/2026 |
 |---|---|---|---|
-| Backend | `plataforma5e/domain` y `plataforma5e/application` (reglas y servicios) | 80 % | 98,7 % |
-| Frontend | `src/services`, `src/store`, `src/utils` | 80 % en líneas, sentencias y funciones; 70 % en ramas | 87,4 % en líneas, 84,1 % en funciones, 82,3 % en ramas |
+| Backend | `plataforma5e/domain` y `plataforma5e/application` (reglas y servicios) | 80 % | 98,9 % |
+| Frontend | `src/services`, `src/utils` | 80 % en líneas, sentencias y funciones; 70 % en ramas | 99,7 % en líneas, 100 % en funciones, 94,6 % en ramas |
 
 Si un cambio hace bajar la cobertura del umbral, la CI marca el commit en rojo. Dónde ver el detalle:
 
@@ -128,15 +128,14 @@ python -m pytest tests/unit tests/arquitectura tests/integration --cov=plataform
 
 | Trabajo | Pasos |
 |---|---|
-| Frontend | `npm ci` → tipos → unitarias con cobertura → build → Playwright con datos de demostración |
+| Frontend | `npm ci` → tipos → unitarias con cobertura → build → instala el backend → Playwright contra el backend real |
 | Backend | unitarias y arquitectura → integración → cobertura → punta a punta con SQLite → punta a punta con PostgreSQL 16 |
 
 PostgreSQL se descarga del espejo público de Amazon ECR para evitar el límite de descargas de Docker Hub.
 Si el commit rompe algo, GitHub lo marca con ✗ y guarda los reportes (`reportes-pytest`, `cobertura-frontend`,
 `informe-playwright`). Si alguna vez falta `backend/pyproject.toml`, el trabajo del backend se omite con un aviso.
 
-**Pendiente (TA-002, Sprint 2):** llevar a la CI las pruebas de la interfaz contra el backend real
-(`npm run test:api:e2e`, incluido el recorrido con material real).
+Las pruebas en navegador ya corren en la CI contra el backend real (antes usaban datos de demostración).
 
 ## Prueba manual después del despliegue
 
@@ -145,26 +144,32 @@ anota el resultado en el acta de la semana:
 
 1. Abrir `https://<servicio>.onrender.com/api/v1/ia`: debe indicar el proveedor y el modelo configurados
    (por ejemplo, `Gemini · gemini-3.8-flash`). Si dice «Generador por reglas», falta la clave o el proveedor.
-2. En la plataforma, modo servidor: crear un curso con un resultado de aprendizaje, subir un PDF con texto (o
+2. En la plataforma: crear una cuenta y un curso con un resultado de aprendizaje, subir un PDF con texto (o
    buscar el tema) y comprobar que aparecen fragmentos.
-3. Generar un ítem de opción múltiple: el aviso debe decir «Generado con <proveedor> a partir de N fragmento(s)».
-4. En Revisión, comprobar que cada cita lleva a un fragmento del material; aprobar y descargar el Moodle XML y la
-   secuencia (.html).
+3. Generar preguntas de opción múltiple: el aviso debe decir «Listo: … para revisar» sin mencionar el generador de
+   respaldo, y en Revisión el recurso debe llevar la etiqueta «Redactado con IA». Si aparece «Generador de respaldo»,
+   el motivo está en los *Logs* de Render («Generación con respaldo: …»).
+4. En Revisión, comprobar con «Ver origen» que cada alternativa lleva a un fragmento del material; aprobar, recargar
+   la página (lo aprobado sigue ahí) y descargar el Moodle XML y el documento de la unidad (.html).
 5. Validar el XML descargado con `python -m tests.e2e.validador_moodle_xml <archivo.xml>` antes de importarlo en Moodle.
 
-## Última verificación: 10/10/2026, copia limpia de `main` con los cambios del flujo real (antes del merge)
+## Última verificación: 10/10/2026 (noche), copia limpia de `main` con el rediseño (antes del merge)
 
-- Backend: 144 pruebas superadas (99 unitarias, 9 de arquitectura, 5 de integración y 31 de punta a punta). Las
-  de punta a punta pasaron con SQLite y con PostgreSQL 16. Cobertura de dominio y servicios: 98,7 %.
-- Frontend: 70 pruebas unitarias (87,4 % de las líneas y 84,1 % de las funciones cubiertas). Pasaron 8 pruebas en
-  navegador con datos de demostración y 5 contra el backend real, entre ellas el recorrido completo: curso con
-  sumilla y resultados → material procesado → generación citada → revisión → Moodle XML y secuencia (.html).
-  Tipos y build sin errores.
+Hecha en un clon nuevo de `main` (4bad0e6) con los cambios aplicados, Python 3.12 y Node 22:
+
+- Backend: 166 pruebas superadas (120 unitarias, 9 de arquitectura, 5 de integración y 32 de punta a punta). Las
+  de punta a punta pasaron con SQLite y con PostgreSQL 16. Cobertura de dominio y servicios: 98,9 %.
+- Frontend: tipos y build sin errores; 68 pruebas unitarias (99,7 % de las líneas, 100 % de las funciones y 94,6 %
+  de las ramas cubiertas) y 3 pruebas en navegador contra el backend real: inicio de sesión, recorrido completo
+  (crear cuenta → curso → material → generación con opciones y con pedido escrito → revisión guardada → descarga
+  de Moodle XML e historial → cerrar sesión y volver a entrar → borrar curso) y menú en el celular.
 - No cubierto por estas pruebas: las respuestas reales de los proveedores de IA y de Wikipedia (se simulan) y la
   ejecución de la CI en GitHub para esta rama, que se verá al subirla.
 
 ## Historial
 
+- 10/10/2026 (tarde), flujo real antes del rediseño: 144 pruebas del backend y 70 unitarias del frontend; 8 en
+  navegador con datos de demostración y 5 contra el backend real.
 - 10/10/2026 sobre `main` (antes del flujo real): 75 pruebas del backend y 64 unitarias del frontend; 8 en
   navegador con datos de demostración y 4 contra el backend real.
 - Control de calidad de TA-007 (09/10): se rompió a propósito el exportador de tres formas (clave sin puntaje,
