@@ -217,6 +217,8 @@ export type DashboardPeriod = 'todo' | '7dias' | 'hoy';
 
 export interface AppState {
   version: number;
+  courses: Course[];
+  units: Unit[];
   documents: MaterialDocument[];
   resources: Resource[];
   reviewLog: ReviewLogEntry[];

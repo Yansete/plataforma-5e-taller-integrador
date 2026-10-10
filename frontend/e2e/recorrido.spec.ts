@@ -11,6 +11,9 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  await page.getByLabel('Correo electrónico').fill('docente@5e.demo');
+  await page.getByLabel('Contraseña', { exact: true }).fill('Demo5E!2026');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 });
 
 test('cada enlace del menú abre su pantalla', async ({ page }) => {

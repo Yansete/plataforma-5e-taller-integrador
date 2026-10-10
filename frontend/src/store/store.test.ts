@@ -50,6 +50,17 @@ describe('almacén del cliente', () => {
     expect(segunda.getState().ui.exportTargetLms).toBe('moodle');
   });
 
+  it('HU-045 migra la versión 1 sin perder decisiones previas', async () => {
+    const app = await recargar();
+    const state = app.getState();
+    storage.setItem(app.STORAGE_KEY, JSON.stringify({ ...state, version: 1, courses: undefined, units: undefined, ui: { ...state.ui, exportTargetLms: 'moodle' } }));
+    const migrated = (await recargar()).getState();
+    expect(migrated.courses).toHaveLength(1);
+    expect(migrated.units.length).toBeGreaterThan(0);
+    expect(migrated.resources).toEqual(state.resources);
+    expect(migrated.ui.exportTargetLms).toBe('moodle');
+  });
+
   it('descarta lo guardado si es de otra versión o está dañado', async () => {
     const app = await recargar();
     storage.setItem(app.STORAGE_KEY, JSON.stringify({ ...app.getState(), version: -1, ui: { ...app.getState().ui, exportTargetLms: 'viejo' } }));

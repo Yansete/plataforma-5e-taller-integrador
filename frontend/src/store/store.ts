@@ -21,7 +21,15 @@ function readPersisted(): AppState | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AppState;
-    if (parsed?.version !== STATE_VERSION || !Array.isArray(parsed.resources)) return null;
+    if (!Array.isArray(parsed?.resources)) return null;
+    // HU-045: conserva las decisiones previas al añadir el catálogo editable.
+    if (parsed.version === 1) {
+      const initial = createInitialState();
+      parsed.courses = initial.courses;
+      parsed.units = initial.units;
+      parsed.version = STATE_VERSION;
+    }
+    if (parsed.version !== STATE_VERSION || !Array.isArray(parsed.courses) || !Array.isArray(parsed.units)) return null;
     // Un procesamiento simulado interrumpido por una recarga no puede continuar.
     parsed.documents = parsed.documents.map((d) =>
       d.status === 'procesando'

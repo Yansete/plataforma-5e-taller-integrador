@@ -249,3 +249,7 @@ git log --oneline -10   # últimos 10 commits
 git diff                # cambios aún no preparados
 git branch -a           # ramas locales y remotas
 ```
+
+## Entrega HU-045
+
+Los cambios se mantienen sin commit ni push. Silvana debe comparar e integrar los archivos sobre su copia local, ejecutar build y pruebas y revisar git diff antes de publicar. Consultar docs/HU-045-aplicar-cambios.md y enlazar el commit resultante en Notion.

@@ -242,9 +242,10 @@ interface TextFieldProps {
   max?: number;
   step?: number;
   maxLength?: number;
+  autoComplete?: string;
 }
 
-export function TextField({ label, value, onChange, hint, error, multiline, rows = 5, className, type = 'text', min, max, step, maxLength }: TextFieldProps) {
+export function TextField({ label, value, onChange, hint, error, multiline, rows = 5, className, type = 'text', min, max, step, maxLength, autoComplete }: TextFieldProps) {
   const id = useId();
   const common = {
     id,
@@ -252,6 +253,7 @@ export function TextField({ label, value, onChange, hint, error, multiline, rows
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy(id, hint, error),
     maxLength,
+    autoComplete,
   } as const;
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} className={className}>

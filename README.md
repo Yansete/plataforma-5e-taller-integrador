@@ -71,6 +71,9 @@ Otros comandos (dentro de `backend/`):
 
 ## Cómo probar el recorrido
 
+HU-045 incorpora /login y /cursos. Accede con `docente@5e.demo` / `Demo5E!2026` (credenciales públicas de demostración). Crea o edita cursos y unidades y pulsa «Continuar al inicio». La autenticación es simulada y el catálogo se guarda localmente. Evidencias y límites en `docs/HU-045-Notion.md`.
+
+
 1. **Inicio**: revisa el resumen. Hay 3 documentos de demostración y 4 ítems en revisión; ninguno aprobado.
 2. **Revisión docente** (paso 3): elige un ítem. Intenta «Aprobar recurso»: se bloquea hasta decidir cada distractor.
    Acepta, edita o descarta cada distractor (el descarte pide un motivo) y luego aprueba.

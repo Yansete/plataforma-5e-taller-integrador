@@ -1287,3 +1287,11 @@ textarea {
     text-align: right;
   }
 }
+
+/* HU-045: composiciones con los tokens compartidos de EN-014. */
+.login-shell { width: min(100%, calc(var(--sidebar-width) * 2)); margin: var(--space-8) auto; padding: var(--space-4); }
+.course-units { min-width: 0; margin: 0; padding: var(--space-4); border: 1px solid var(--color-line); border-radius: var(--radius-control); }
+.course-units legend { padding-inline: var(--space-2); }
+.sidebar__footer span { overflow-wrap: anywhere; }
+
+.course-list { list-style: none; padding: 0; margin: 0; }

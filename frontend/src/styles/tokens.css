@@ -90,6 +90,6 @@
   --shadow-overlay: 0 8px 24px rgba(26, 33, 30, 0.16);
 
   /* Foco visible */
-  --focus-ring: 2px solid var(--color-accent);
+  --focus-ring: 2px solid var(--color-brand-dark);
   --focus-offset: 2px;
 }

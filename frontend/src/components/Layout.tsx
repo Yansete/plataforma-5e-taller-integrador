@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { catalogService, preferencesService } from '../services';
+import { catalogService, preferencesService, sessionService, useDemoSession } from '../services';
 import { Icon, type IconName } from './Icon';
+import { useAppState } from '../store/store';
 import { ConfirmDialog } from './ui';
 
 export const ROUTES: { to: string; label: string; icon: IconName; step?: number; title: string }[] = [
   { to: '/', label: 'Inicio', icon: 'home', title: 'Inicio del docente' },
+  { to: '/cursos', label: 'Cursos y unidades', icon: 'home', title: 'Cursos y unidades' },
   { to: '/carga', label: 'Carga de material', icon: 'upload', step: 1, title: 'Carga de material' },
   { to: '/configuracion', label: 'Configuración', icon: 'sliders', step: 2, title: 'Configuración de la generación' },
   { to: '/revision', label: 'Revisión docente', icon: 'review', step: 3, title: 'Revisión docente' },
@@ -20,6 +22,8 @@ export function Layout() {
   const navigate = useNavigate();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  useAppState((s) => s.courses);
+  const session = useDemoSession();
   const course = catalogService.getCourse();
 
   const firstRender = useRef(true);
@@ -121,7 +125,8 @@ export function Layout() {
           </div>
 
           <div className="sidebar__footer">
-            <span>Docente (demostración)</span>
+            <span>{session} (demostración)</span>
+            <button type="button" className="sidebar__reset" onClick={() => { sessionService.logout(); navigate('/login', { replace: true }); }}>Cerrar sesión</button>
             <button type="button" className="sidebar__reset" onClick={() => setConfirmReset(true)}>
               <Icon name="reset" />
               Restablecer demo
@@ -152,7 +157,7 @@ export function Layout() {
         onCancel={() => setConfirmReset(false)}
       >
         <p>
-          Se borrarán los documentos que registraste, las generaciones, las decisiones de revisión y las exportaciones guardadas en
+          Se borrarán los cursos y unidades que creaste, los documentos que registraste, las generaciones, las decisiones de revisión y las exportaciones guardadas en
           este navegador. Se volverán a cargar los datos de demostración iniciales.
         </p>
       </ConfirmDialog>

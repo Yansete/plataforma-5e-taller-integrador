@@ -137,3 +137,9 @@ Conclusiones:
 | C11 | Roles | TA-001 exige roles docente/estudiante/administrador; el alcance actual no incluye autenticación | Usuario único de demostración |
 | C12 | Capacidad | Sprint 1 planifica 65 SP con capacidad de 64 SP | Ninguno |
 | C13 | I16 e I17 en el tablero | HU-021 exige mostrarlos, pero no pueden calcularse sin exportador, validador ni LMS | Se muestran como «Pendiente» sin valor inventado |
+
+## HU-045 sesión y catálogo de demostración 09/10/2026
+
+Implementado: sessionStorage conserva solo el identificador público de la sesión, nunca contraseñas. No autentica contra backend. courseService valida y guarda curso/unidad en el store; la versión 2 migra el estado 1 conservando decisiones. La edición mantiene identificadores, números y resultados de aprendizaje de unidades existentes; no permite eliminarlas para proteger referencias. El catálogo expone todas las unidades; el contexto global por curso queda pendiente.
+
+El token de foco cambia a `2px solid var(--color-brand-dark)` (#16352C) por la instrucción expresa de HU-023; actualiza D4 para superficies claras. El foco de la barra lateral conserva blanco por contraste. Esta implementación no implica aprobación del asesor.

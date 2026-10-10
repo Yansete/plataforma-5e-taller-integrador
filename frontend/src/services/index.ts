@@ -14,3 +14,7 @@ export { exportService, exportableResources, formatIssues, EXPORT_STEPS } from '
 export { computeIndicators, resourcesInScope, inPeriod } from './indicatorService';
 export { preferencesService } from './preferencesService';
 export { ServiceError } from './simulation';
+
+export { sessionService, useDemoSession, DEMO_EMAIL, DEMO_PASSWORD } from './sessionService';
+export { courseService } from './courseService';
+export type { CourseInput } from './courseService';

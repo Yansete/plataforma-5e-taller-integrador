@@ -1,7 +1,7 @@
-import { DEMO_DOCUMENTS, DEMO_UNITS, EXAMPLES, INITIAL_EXAMPLE_IDS, type ExampleResource } from '../data/demoContent';
+import { DEMO_COURSE, DEMO_DOCUMENTS, DEMO_UNITS, EXAMPLES, INITIAL_EXAMPLE_IDS, type ExampleResource } from '../data/demoContent';
 import type { AppState, GenerationRequest, Resource } from '../types';
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 let counter = 0;
 /** Identificador local. El backend asignará los definitivos. */
@@ -68,6 +68,8 @@ export function createInitialState(): AppState {
 
   return {
     version: STATE_VERSION,
+    courses: [{ ...DEMO_COURSE }],
+    units: DEMO_UNITS.map((u) => ({ ...u, outcomes: u.outcomes.map((o) => ({ ...o })) })),
     documents: DEMO_DOCUMENTS.map((d) => ({ ...d })),
     resources,
     reviewLog: [],

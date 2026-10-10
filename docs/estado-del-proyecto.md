@@ -1,11 +1,11 @@
 # Estado del proyecto
 
-**Última actualización:** 05/10/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
+**Última actualización:** 09/10/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
 
 ## Resumen
 
 Existe un frontend navegable con seis pantallas conectadas, datos de demostración y una capa de servicios simulados.
-**No existe backend.** Todo lo que depende de él está marcado como pendiente en la interfaz y en este documento.
+**Existe un backend base FastAPI con arquitectura hexagonal y adaptador SQLAlchemy**, aún sin conectar a estos servicios del frontend. La generación sigue simulada; no hay RAG real.
 
 ## Implementado (funciona localmente en el navegador)
 
@@ -30,7 +30,7 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
 - **Evidencia de origen**: 12 fragmentos ficticios de 3 documentos ficticios.
 - **Filtro de fiabilidad**: una única advertencia fija en un distractor de ejemplo.
 - **Exportación**: registra la solicitud; no genera paquetes. El JSON descargable avisa de que no es importable.
-- **Usuario**: «Docente (demostración)»; no hay sesión ni roles.
+- **Usuario**: sesión de demostración HU-045 con credenciales públicas y sessionStorage; no hay autenticación real ni roles.
 
 ## Indicadores: qué es real y qué no
 
@@ -106,3 +106,7 @@ Existe un frontend navegable con seis pantallas conectadas, datos de demostraci�
 3. Acordar los contratos de EN-003 y ajustar `types/index.ts`.
 4. Sustituir los servicios simulados uno a uno según `integracion-backend.md`.
 5. Añadir pruebas de componentes y de accesibilidad automatizadas si el equipo lo considera necesario.
+
+## Avance HU-045 del 09/10/2026
+
+Inicio de sesión simulado y catálogo editable de cursos/unidades, rutas /login y /cursos. Datos locales; sin endpoints nuevos. Migración del estado a versión 2 conserva las decisiones anteriores. Verificaciones de esta copia: build correcto, 36 pruebas unitarias y 3 recorridos Chromium superados. Capturas en docs/evidencias/HU-045; registro para Notion y límites en docs/HU-045-Notion.md. Pendiente revisión local de Silvana, publicación del código, acta Word, diapositiva y aprobación académica. No se ha realizado validación con docentes.
