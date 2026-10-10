@@ -1,1 +1,0 @@
-# Contratos de Generación Versionados v1.0.0 (EN-005)

@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 from plataforma5e.domain.errores import PersistenciaNoDisponible
-from app.contracts.solicitud import GenerationRequestModel
+from plataforma5e.adapters.inbound.contratos.solicitud import GenerationRequestModel
 from plataforma5e.application.services.generacion_service import GeneracionService
 from plataforma5e.domain.generacion import GeneracionError
 

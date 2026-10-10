@@ -5,15 +5,15 @@ Script de exportación y compilación de esquemas JSON Schema.
 import json
 from pathlib import Path
 
-from app.contracts.solicitud import GenerationRequestModel
-from app.contracts.engage import ResourceEngageItemModel
-from app.contracts.explore import ResourceExploreItemModel
-from app.contracts.explain import ResourceExplainItemModel
-from app.contracts.elaborate import ResourceElaborateItemModel
-from app.contracts.evaluate import ResourceEvaluateItemModel
+from plataforma5e.adapters.inbound.contratos.solicitud import GenerationRequestModel
+from plataforma5e.adapters.inbound.contratos.engage import ResourceEngageItemModel
+from plataforma5e.adapters.inbound.contratos.explore import ResourceExploreItemModel
+from plataforma5e.adapters.inbound.contratos.explain import ResourceExplainItemModel
+from plataforma5e.adapters.inbound.contratos.elaborate import ResourceElaborateItemModel
+from plataforma5e.adapters.inbound.contratos.evaluate import ResourceEvaluateItemModel
 
 # Determina la raíz del repositorio y el directorio de documentación compartido
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT_DIR / "docs" / "contratos"
 
 

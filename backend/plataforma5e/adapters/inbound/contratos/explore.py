@@ -4,7 +4,7 @@ Módulo de contratos de salida para la etapa pedagógica Explorar (Explore).
 
 from typing import List, Literal
 from pydantic import BaseModel, Field
-from app.contracts.base import FragmentCitationModel
+from plataforma5e.adapters.inbound.contratos.base import FragmentCitationModel
 
 
 class PasoIndagacionModel(BaseModel):
