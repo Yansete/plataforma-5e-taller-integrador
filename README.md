@@ -4,7 +4,10 @@ Proyecto del curso **Taller Integrador 1** (UPAO, 2026-II). Plataforma que, a pa
 recursos para una secuencia didáctica del modelo **5E**, con **revisión docente obligatoria**, **trazabilidad a la
 evidencia de origen** y exportación de lo aprobado a **Moodle (Moodle XML)** y **Chamilo (QTI 2.1)**.
 
-> **Estado actual:** El repositorio cuenta con el **frontend** interactivo, la base de datos local en **PostgreSQL 17 + pgvector**, y el **backend base** consolidado bajo Arquitectura Hexagonal con FastAPI y SQLAlchemy.
+> **Estado actual:** frontend interactivo y backend hexagonal (FastAPI y SQLAlchemy). En modo servidor el sistema procesa el
+> material real del docente (PDF, PPTX o TXT, o artículos de Wikipedia buscados por tema), recupera los fragmentos
+> relacionados y genera recursos de las cinco etapas 5E que citan su evidencia, con IA si hay clave o con reglas si no.
+> La base vectorial con pgvector (EN-011) está lista para la búsqueda por significado del Sprint 2.
 
 Enlace: https://plataforma-5e-taller-integrador.vercel.app/
 
@@ -97,15 +100,17 @@ Otros comandos (dentro de `backend/`):
 El menú lateral sigue los pasos del docente. Cada pantalla tiene un botón para avanzar al siguiente.
 
 1. **Cursos y unidades**: crea o edita un curso y sus unidades. Luego «Continuar a carga de material».
-2. **Carga de material** (paso 1): registra un PDF, PPTX o TXT con su contexto. En modo backend el archivo se guarda en el
-   servidor; la extracción de fragmentos todavía está pendiente.
+2. **Carga de material** (paso 1): registra un PDF, PPTX o TXT con su contexto. En modo backend el servidor extrae el texto y
+   lo parte en fragmentos («Ver fragmentos» muestra lo que la generación puede citar). Sin material propio, «Busca el tema»
+   trae artículos de Wikipedia y los procesa igual.
 3. **Solicitud** (paso 2): pide recursos con los **selectores** de Configuración o con la **solicitud por chat**, que muestra
-   la interpretación para que la corrijas antes de continuar. La generación usa ejemplos preparados (local o desde la API).
+   la interpretación para que la corrijas antes de continuar. En modo backend se genera con tu material; en el prototipo
+   local, con ejemplos preparados.
 4. **Secuencia 5E** (paso 3): tablero con las cinco etapas de la unidad, sus recursos y su estado de revisión.
 5. **Revisión docente** (paso 4): revisa cada recurso con la evidencia citada. Acepta, edita o descarta cada distractor (el
    descarte pide un motivo) y aprueba. «Regenerar» propone otra versión y conserva la anterior, que puedes restaurar.
-6. **Exportación** (paso 5): elige **Moodle** (Moodle XML) o **Chamilo** (paquete QTI 2.1 en ZIP), exporta lo aprobado y
-   descarga el archivo. El Moodle XML pasa el validador del backend.
+6. **Exportación** (paso 5): elige **Moodle** (Moodle XML) o **Chamilo** (paquete QTI 2.1 en ZIP), exporta los ítems aprobados y
+   descarga el archivo. «Descargar secuencia (.html)» reúne todos los recursos aprobados, de cualquier tipo, con su evidencia.
 7. **Indicadores**: valores calculados con tus decisiones, ejemplos y pendientes.
 8. **Restablecer demo** (barra lateral): vuelve al estado inicial.
 
@@ -127,7 +132,7 @@ Detalles, comandos y estructura de las migraciones en [db/README.md](db/README.m
 ### Dónde se guardan los datos y archivos
 
 * **Datos y Embeddings (PostgreSQL):** La información relacional (recursos pedagógicos, opciones, revisiones) e índices vectoriales de los fragmentos se almacenan en el contenedor de **PostgreSQL 17** gestionado por Docker, persistiendo en el volumen local `datos-postgres`.
-* **Archivos del docente:** en modo backend, los PDF, PPTX y TXT se guardan en la base de datos del backend (SQLite por defecto o PostgreSQL con `DATABASE_URL=postgresql+psycopg://…`). La extracción de fragmentos y los embeddings son el siguiente paso (EN-012/EN-013).
+* **Archivos del docente y fragmentos:** en modo backend, los PDF, PPTX y TXT y sus fragmentos se guardan en la base de datos del backend (SQLite por defecto o PostgreSQL con `DATABASE_URL`). Los embeddings en pgvector son el siguiente paso (EN-013).
 
 ## Estructura
 
@@ -159,14 +164,36 @@ taller-integrador/
 └── README.md
 ```
 
+## Generación con IA
+
+Sin configuración, el backend usa el **generador por reglas**: arma los recursos con oraciones y términos del material, sin
+inventar nada. Para redactar con un modelo de lenguaje, define en la terminal del backend (o en el servidor):
+
+```bash
+IA_PROVEEDOR=gemini        # gemini, anthropic u openai (o compatible, con IA_URL_BASE)
+IA_API_KEY=tu-clave        # nunca se sube al repositorio
+IA_MODELO=gemini-3.8-flash # opcional
+```
+
+`GET /api/v1/ia` indica qué generador está activo. Si el proveedor falla (clave inválida o límite de uso), la generación
+usa el generador por reglas y lo avisa. El despliegue completo (Vercel, Render y Neon) está en
+[docs/despliegue.md](docs/despliegue.md).
+
 ## Documentación
 
 * [Arquitectura y estado del proyecto](docs/arquitectura.md): capas, contratos, integración, límites y ejecución.
 * [Decisiones técnicas](docs/decisiones-tecnicas.md): decisiones, motivos, contradicciones y vacíos detectados.
 * [Formatos de exportación SP-003](docs/spikes/SP-003-formatos-de-exportacion.md): Moodle XML y QTI 2.1, validación LMS pendiente.
+* [Despliegue](docs/despliegue.md): Vercel, Render y Neon, variables de entorno y problemas frecuentes.
+* [Pruebas](docs/pruebas.md): dónde va cada tipo de prueba y cómo correrlas.
 * [Guía de Git y GitHub](docs/guia-git.md): pasos para versionar y subir el proyecto.
 * [Especificación OpenAPI](docs/openapi.json): especificación contractual generada del backend.
 
 ## Equipo
 
-Juan Alegria · Silvana Diaz · Yan Liu Dai · Sergio Celi.
+| Integrante | Usuario en GitHub | Responsabilidad principal |
+|---|---|---|
+| Juan Alegria Sagastegui | `iamjuanyouarenot` | Product Owner, pruebas y medición; agentes de Elaborar y Evaluar |
+| Silvana Diaz Calderon | `SilvanaD12` | EP-002 Configuración del docente y diseño de la interfaz |
+| Yan Liu Dai | `Yansete` | EP-003 Creación por etapa 5E, ingesta y RAG, despliegue del frontend |
+| Sergio Celi Vertiz | `sceliv` | EP-004 Integración y tipología, arquitectura del backend |

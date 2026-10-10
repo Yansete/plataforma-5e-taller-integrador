@@ -4,7 +4,9 @@ import { Alert, Button, ButtonLink, Card, CardHeader, EmptyState, PageHeader, Ta
 import { EXPORT_FORMATS, TARGET_LMS_OPTIONS, exportFormatName, resourceTypeName, stageName, targetLmsName } from '../data/catalog';
 import {
   EXPORT_STEPS,
+  buildSequenceHtml,
   catalogService,
+  unitLabel,
   exportService,
   exportableResources,
   formatForLms,
@@ -65,6 +67,24 @@ export function ExportacionPage() {
     } finally {
       setRunning(null);
     }
+  };
+
+  const downloadSequence = () => {
+    const html = buildSequenceHtml(selectedResources, {
+      courseName: catalogService.listCourses().find((c) => c.id === catalogService.getUnit(selectedResources[0]?.unitId ?? '')?.courseId)?.name
+        ?? catalogService.getCourse().name,
+      unitLabel,
+      fragments: (ids) => catalogService.getFragments(ids),
+      documentName: (id) => catalogService.documentName(id),
+    });
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `secuencia-5e-${new Date().toISOString().slice(0, 10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const stepStatus = (id: ExportStepId): ExportStepStatus | 'en_curso' | 'por_hacer' => {
@@ -183,6 +203,11 @@ export function ExportacionPage() {
                 </Button>
                 {selection.length === 0 && <span className="caption">Selecciona al menos un recurso aprobado.</span>}
               </div>
+            </Card>
+
+            <Card>
+              <CardHeader title="Secuencia completa como documento" description="Reúne los recursos aprobados seleccionados de cualquier etapa y tipo (preguntas, guías, explicaciones, ítems…) con su evidencia. Se abre en el navegador o en Word y se puede imprimir como PDF." />
+              <Button icon="download" onClick={downloadSequence} disabled={selection.length === 0 || running !== null}>Descargar secuencia (.html)</Button>
             </Card>
 
             <Card aria-live="polite">

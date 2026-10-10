@@ -17,6 +17,7 @@ import { useAppState } from '../store/store';
 import type { Difficulty, GenerationOutcome, GenerationRequest, ResourceType, Stage5E } from '../types';
 import { sessionService } from '../services/sessionService';
 import { refreshBackendHistory } from '../services/configurationApiService';
+import { fetchGeneratorInfo } from '../services/generationApiService';
 import { MODALITIES } from '../services/chatService';
 import { formatDateTime } from '../utils/format';
 
@@ -50,6 +51,8 @@ export function ConfiguracionPage() {
   const [historyError, setHistoryError] = useState('');
   const loadHistory = () => { setHistoryError(''); void refreshBackendHistory().catch((e) => setHistoryError(e.message)); };
   useEffect(() => { if (connected) loadHistory(); }, [connected]);
+  const [generator, setGenerator] = useState<{ descripcion: string; usaIA: boolean } | null>(null);
+  useEffect(() => { if (connected) void fetchGeneratorInfo().then(setGenerator); }, [connected]);
   const savedMode = useAppState((s) => s.ui.generationMode ?? 'local');
   // En la versión publicada (sin backend) solo existe la demostración local.
   const mode = SOLO_LOCAL ? 'local' : savedMode;
@@ -84,6 +87,8 @@ export function ConfiguracionPage() {
 
   const unitDocs = documents.filter((d) => d.unitId === form.unitId);
   const usableDocs = unitDocs.filter((d) => d.status === 'procesado' && d.fragmentCount > 0);
+  const serverDocs = usableDocs.filter((d) => d.source === 'backend');
+  const serverFragments = serverDocs.reduce((n, d) => n + d.fragmentCount, 0);
   const hasMaterial = unitHasUsableMaterial(form.unitId);
   const examples = availableExamples(form.unitId, form.stage, form.resourceType, form.outcomeId);
   const alreadyInQueue = examples.filter((e) => resources.some((r) => r.exampleId === e.exampleId)).length;
@@ -110,7 +115,9 @@ export function ConfiguracionPage() {
       <PageHeader
         overline="Paso 2 · Solicitud por selectores"
         title="Configuración de la generación"
-        description="Elige la unidad, el resultado de aprendizaje y la etapa 5E. La generación está simulada con ejemplos preparados; todo lo propuesto pasa a revisión."
+        description={connected
+          ? 'Elige la unidad, el resultado de aprendizaje y la etapa 5E. El sistema busca en tu material los fragmentos relacionados y redacta las propuestas citándolos; todo pasa a tu revisión.'
+          : 'Elige la unidad, el resultado de aprendizaje y la etapa 5E. La generación está simulada con ejemplos preparados; todo lo propuesto pasa a revisión.'}
         actions={
           <ButtonLink to="/secuencia" icon="arrowRight">
             Ver secuencia 5E
@@ -124,9 +131,14 @@ export function ConfiguracionPage() {
           <CardHeader title="Solicitud de generación" />
           {!SOLO_LOCAL && <SelectField label="Origen de las propuestas" value={mode}
             onChange={(v) => { setResult(null); preferencesService.update('generationMode', v as 'local' | 'api_demo'); }}
-            options={[{ value: 'local', label: 'Demostración local' }, { value: 'api_demo', label: 'API de demostración' }]} disabled={busy || connected}
-            hint="La API usa ejemplos preparados y guarda las solicitudes en el servidor. La generación RAG sigue pendiente." />}
-          {mode === 'api_demo' && <Alert title="Integración con API activa">Las propuestas se reciben del backend. Su contenido y evidencia son ficticios de demostración; las decisiones de revisión se guardan en este navegador.</Alert>}
+            options={[{ value: 'local', label: 'Demostración local' }, { value: 'api_demo', label: connected ? 'Servidor: tu material' : 'API de demostración' }]} disabled={busy || connected}
+            hint={connected ? 'Con material procesado se genera con él; las unidades de ejemplo sin material propio usan propuestas preparadas.' : 'Sin iniciar sesión en el servidor, la API usa ejemplos preparados.'} />}
+          {mode === 'api_demo' && !connected && <Alert title="Integración con API activa">Las propuestas se reciben del backend. Su contenido y evidencia son ficticios de demostración; las decisiones de revisión se guardan en este navegador.</Alert>}
+          {connected && <Alert title={generator ? `Generador: ${generator.descripcion}` : 'Generación con tu material'}>
+            {generator && !generator.usaIA
+              ? 'El servidor no tiene una clave de IA configurada: los recursos se arman con oraciones y términos de tu material, sin inventar nada. Con una clave (IA_API_KEY) se redactan con un modelo de lenguaje.'
+              : 'Los recursos se redactan con un modelo de lenguaje a partir de los fragmentos de tu material y citan cada afirmación. Si el modelo no responde, se usa el generador por reglas.'}
+          </Alert>}
 
           <form
             className="stack"
@@ -171,7 +183,7 @@ export function ConfiguracionPage() {
             </fieldset>
 
             <div className="form-grid">
-              <TextField label="Público objetivo / Ciclo" value={form.audience ?? ''} onChange={(v) => update('audience', v)} maxLength={200} hint="Se conserva en la solicitud; su efecto requiere RAG." />
+              <TextField label="Público objetivo / Ciclo" value={form.audience ?? ''} onChange={(v) => update('audience', v)} maxLength={200} hint={connected ? 'El generador con IA adapta el lenguaje a este público.' : 'Se conserva en la solicitud; su efecto requiere RAG.'} />
               <TextField label="Competencia a desarrollar" value={form.competency ?? ''} onChange={(v) => update('competency', v)} maxLength={200} />
             </div>
             <fieldset className="fieldset">
@@ -195,7 +207,7 @@ export function ConfiguracionPage() {
                 value={String(form.quantity)}
                 onChange={(v) => update('quantity', Number(v))}
                 options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))}
-                hint="Máximo según los ejemplos preparados disponibles."
+                hint={connected ? 'Hasta 5 por solicitud. Solo se aceptan recursos que citan tu material.' : 'Máximo según los ejemplos preparados disponibles.'}
                 disabled={busy}
               />
               <SelectField
@@ -207,7 +219,7 @@ export function ConfiguracionPage() {
                   { value: 'intermedia', label: 'Intermedia' },
                   { value: 'avanzada', label: 'Avanzada' },
                 ]}
-                hint="En la demostración no cambia los ejemplos."
+                hint={connected ? 'El generador con IA ajusta la complejidad; el generador por reglas no.' : 'En la demostración no cambia los ejemplos.'}
                 disabled={busy}
               />
               {form.stage === 'evaluate' && (
@@ -216,11 +228,11 @@ export function ConfiguracionPage() {
                   value={String(form.optionCount)}
                   onChange={(v) => update('optionCount', Number(v))}
                   options={[
-                    { value: '3', label: '3 (no disponible en la demo)', disabled: true },
+                    { value: '3', label: connected ? '3' : '3 (no disponible en la demo)', disabled: !connected },
                     { value: '4', label: '4' },
-                    { value: '5', label: '5 (no disponible en la demo)', disabled: true },
+                    { value: '5', label: connected ? '5' : '5 (no disponible en la demo)', disabled: !connected },
                   ]}
-                  hint="Los ejemplos preparados tienen 4 alternativas."
+                  hint={connected ? 'Las unidades de ejemplo sin material propio solo tienen ítems de 4 alternativas.' : 'Los ejemplos preparados tienen 4 alternativas.'}
                   disabled={busy}
                 />
               )}
@@ -236,7 +248,7 @@ export function ConfiguracionPage() {
                   value={String(form.topK)}
                   onChange={(v) => update('topK', Number(v))}
                   options={[5, 10, 20].map((n) => ({ value: String(n), label: String(n) }))}
-                  hint={PENDING_HINT}
+                  hint={connected ? 'Cuántos fragmentos de tu material recibe el generador (máximo 12).' : PENDING_HINT}
                   disabled={busy}
                 />
                 <SelectField
@@ -257,12 +269,12 @@ export function ConfiguracionPage() {
               multiline
               rows={3}
               maxLength={500}
-              hint="Por ejemplo: «usar ejemplos del contexto peruano». Se guardan en la solicitud; la demo no las interpreta."
+              hint={connected ? 'Por ejemplo: «usar ejemplos del contexto peruano». El generador con IA las sigue; el generador por reglas no.' : 'Por ejemplo: «usar ejemplos del contexto peruano». Se guardan en la solicitud; la demo no las interpreta.'}
             />
 
             <div className="cluster">
               <Button type="submit" variant="primary" icon="layers" loading={busy} disabled={busy}>
-                {mode === 'api_demo' ? 'Solicitar propuestas a la API' : 'Generar propuestas (simulado)'}
+                {connected ? 'Generar propuestas con mi material' : mode === 'api_demo' ? 'Solicitar propuestas a la API' : 'Generar propuestas (simulado)'}
               </Button>
               {busy && phase && <Spinner label={`${PHASE_LABELS[phase]}…`} />}
             </div>
@@ -273,7 +285,10 @@ export function ConfiguracionPage() {
               <Alert tone="success" title={`${result.created.length} recurso(s) enviados a revisión`} role="status">
                 <p>
                   Quedan en estado «En revisión». Ninguno se aprueba sin tu decisión.
-                  {result.created.length < form.quantity && ` Solo hay ${result.created.length} ejemplo(s) nuevos disponibles de los ${form.quantity} solicitados.`}
+                  {result.notice && ` ${result.notice}`}
+                  {result.created.length < form.quantity && (result.created[0]?.source === 'rag'
+                    ? ` Se aceptaron ${result.created.length} de los ${form.quantity} pedidos: solo pasan los que citan tu material correctamente.`
+                    : ` Solo hay ${result.created.length} ejemplo(s) nuevos disponibles de los ${form.quantity} solicitados.`)}
                   {result.skipped > 0 && ` ${result.skipped} ejemplo(s) ya estaban en la cola y no se duplicaron.`}
                 </p>
                 <div style={{ marginTop: 'var(--space-3)' }}>
@@ -305,17 +320,36 @@ export function ConfiguracionPage() {
         <div className="stack">
           <Card as="aside" aria-labelledby="evidencia-disponible">
             <CardHeader id="evidencia-disponible" title="Evidencia disponible" description={unit ? `Unidad ${unit.number}: ${unit.title}` : ''} headingLevel={2} />
-            <ul className="stack stack--tight text-ui" style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>
-              <li>{`${usableDocs.length} documento(s) con fragmentos de ejemplo`}</li>
-              <li>{`${catalogService.countFragmentsForUnit(form.unitId)} fragmentos de demostración en la unidad`}</li>
-              <li>{`${unitDocs.length - usableDocs.length} documento(s) tuyos sin fragmentos (procesamiento simulado)`}</li>
-            </ul>
+            {connected ? (
+              <ul className="stack stack--tight text-ui" style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>
+                <li>{`${serverDocs.length} documento(s) tuyos procesados, con ${serverFragments} fragmento(s)`}</li>
+                <li>{`${unitDocs.filter((d) => d.source === 'backend' && d.status !== 'procesado').length} documento(s) sin procesar o con error`}</li>
+                {catalogService.countFragmentsForUnit(form.unitId) > 0 && <li>{`${catalogService.countFragmentsForUnit(form.unitId)} fragmentos de ejemplo (se usan solo si no subes material)`}</li>}
+              </ul>
+            ) : (
+              <ul className="stack stack--tight text-ui" style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>
+                <li>{`${usableDocs.length} documento(s) con fragmentos de ejemplo`}</li>
+                <li>{`${catalogService.countFragmentsForUnit(form.unitId)} fragmentos de demostración en la unidad`}</li>
+                <li>{`${unitDocs.length - usableDocs.length} documento(s) tuyos sin fragmentos (procesamiento simulado)`}</li>
+              </ul>
+            )}
             <hr className="divider" style={{ margin: 'var(--space-4) 0' }} />
-            <p className="text-ui">
-              <strong>{examples.length}</strong> ejemplo(s) preparado(s) para {stageName(form.stage)} · {resourceTypeName(form.resourceType)}
-              {alreadyInQueue > 0 && `, ${alreadyInQueue} ya en revisión`}.
-            </p>
-            {!hasMaterial && (
+            {connected && serverDocs.length > 0 ? (
+              <p className="text-ui">Se generará con tu material: {stageName(form.stage)} · {resourceTypeName(form.resourceType)}.</p>
+            ) : (
+              <p className="text-ui">
+                <strong>{examples.length}</strong> ejemplo(s) preparado(s) para {stageName(form.stage)} · {resourceTypeName(form.resourceType)}
+                {alreadyInQueue > 0 && `, ${alreadyInQueue} ya en revisión`}.
+              </p>
+            )}
+            {connected && serverDocs.length === 0 && examples.length === 0 && (
+              <div style={{ marginTop: 'var(--space-3)' }}>
+                <Alert tone="warn" title="Sin material procesado">
+                  Esta unidad todavía no tiene material procesado. Ve a <ButtonLink to="/carga" compact>Carga de material</ButtonLink> para subir un documento o buscar el tema.
+                </Alert>
+              </div>
+            )}
+            {!connected && !hasMaterial && (
               <div style={{ marginTop: 'var(--space-3)' }}>
                 <Alert tone="warn" title="Sin evidencia utilizable">
                   Esta unidad no tiene documentos con fragmentos. Restablece la demo o registra material en la carga (aunque su procesamiento es simulado).

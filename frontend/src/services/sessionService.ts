@@ -1,6 +1,7 @@
 /** HU-045 local y EP-002: cuenta demo verificada por el servidor, con token revocable. */
 import { useSyncExternalStore } from 'react';
 import { selectSessionStore } from '../store/store';
+import { apiUrl } from '../config/despliegue';
 const KEY = 'plataforma5e.session.demo';
 const API_KEY = 'plataforma5e.session.backend';
 export const DEMO_EMAIL = 'docente@5e.demo';
@@ -36,9 +37,10 @@ export const sessionService = {
     apiSession = null; update(normalized);
   },
   async loginBackend(email: string, password: string) {
-    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15000);
+    // El servidor gratuito se duerme tras 15 minutos sin uso y tarda hasta un minuto en despertar.
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 90000);
     try {
-      const response = await fetch('/api/v1/sesiones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }), signal: controller.signal });
+      const response = await fetch(apiUrl('/api/v1/sesiones'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }), signal: controller.signal });
       const value = await response.json().catch(() => null);
       if (!value) throw new Error('El backend no respondió correctamente. Comprueba que esté iniciado.');
       if (!response.ok) throw new Error(value.error?.mensaje ?? 'No se pudo iniciar sesión.');
@@ -53,7 +55,7 @@ export const sessionService = {
     // Revocación primero: si la API falla se conserva la sesión para reintentar.
     if (apiSession) {
       const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 10000);
-      try { const response = await fetch('/api/v1/sesiones/actual', { method: 'DELETE', headers: this.headers(), signal: controller.signal });
+      try { const response = await fetch(apiUrl('/api/v1/sesiones/actual'), { method: 'DELETE', headers: this.headers(), signal: controller.signal });
         if (!response.ok && response.status !== 401) throw new Error('No se pudo cerrar la sesión en el servidor. Vuelve a intentar.');
       } finally { clearTimeout(timer); }
     }

@@ -1,12 +1,14 @@
 /** EP-002: frontera HTTP para el catálogo, archivos e historial del docente. */
 import { sessionService } from './sessionService';
 import { getState, setState } from '../store/store';
+import { apiUrl } from '../config/despliegue';
 import type { Course, Unit, MaterialDocument, GenerationRequest } from '../types';
 export type ServerCourse = Course & { units: Unit[] };
-export async function configurationFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 30000);
+/** Llama a la API con la sesión del docente. `timeoutMs` amplía la espera en operaciones largas (procesar un libro). */
+export async function configurationFetch(path: string, options: RequestInit = {}, timeoutMs = 30000): Promise<Response> {
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`/api/v1${path}`, { ...options, headers: { ...sessionService.headers(), ...options.headers }, signal: controller.signal });
+    const response = await fetch(apiUrl(`/api/v1${path}`), { ...options, headers: { ...sessionService.headers(), ...options.headers }, signal: controller.signal });
     if (!response.ok) {
       if (response.status === 401) sessionService.expire();
       const data = await response.json().catch(() => null);

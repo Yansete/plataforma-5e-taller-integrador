@@ -6,8 +6,8 @@ import { sessionService } from './sessionService';
  * Distinción importante:
  * 1. SELECCIÓN LOCAL: el navegador conoce el nombre, tipo y tamaño del archivo. No se lee su contenido.
  * 2. REGISTRO: se guardan solo esos metadatos y el contexto (unidad, RA, tipo, etapa sugerida).
- * 3. PROCESAMIENTO SIMULADO: se recorren los pasos de extracción, segmentación y vectorización
- *    sin procesar nada. Por eso los documentos del usuario quedan con 0 fragmentos.
+ * 3. PROCESAMIENTO: en modo servidor el backend extrae el texto y lo parte en fragmentos reales.
+ *    En el prototipo local los pasos son simulados y los documentos del usuario quedan con 0 fragmentos.
  *
  * Futuro: POST /documentos (multipart) y GET /documentos/{id}/estado.
  */
@@ -52,7 +52,8 @@ export function validateRegistration(input: Omit<Partial<RegisterInput>, 'file'>
   const fileError = validateFile(input.file);
   if (fileError) errors.file = fileError;
   if (!input.unitId) errors.unitId = 'Elige la unidad a la que pertenece el material.';
-  if ((!input.outcomeIds || input.outcomeIds.length === 0) && (!sessionService.isBackend() || !!getState().units.find((u) => u.id === input.unitId)?.outcomes.length)) errors.outcomeIds = 'Marca al menos un resultado de aprendizaje.';
+  // Solo se exige un resultado de aprendizaje si la unidad tiene alguno (las unidades nuevas pueden no tenerlos).
+  if ((!input.outcomeIds || input.outcomeIds.length === 0) && !!getState().units.find((u) => u.id === input.unitId)?.outcomes.length) errors.outcomeIds = 'Marca al menos un resultado de aprendizaje.';
   if (!input.documentType) errors.documentType = 'Elige el tipo de documento.';
   if (!input.usePermission) errors.usePermission = 'Debes confirmar que cuentas con permiso de uso del material.';
   if (!errors.file && input.file && input.unitId) {
@@ -83,7 +84,9 @@ export const materialService = {
       const data = new FormData(); data.append('file', input.file.blob);
       const { file: _file, ...contexto } = input; data.append('contexto', JSON.stringify(contexto));
       const doc: MaterialDocument = await (await configurationFetch('/documentos', { method: 'POST', body: data })).json();
-      setState((s) => ({ ...s, documents: [doc, ...s.documents] })); return doc;
+      setState((s) => ({ ...s, documents: [doc, ...s.documents] }));
+      // Si el procesamiento falla, el archivo igual queda guardado y la lista muestra el motivo y «Volver a procesar».
+      try { return await this.processOnServer(doc.id); } catch { return getState().documents.find((d) => d.id === doc.id) ?? doc; }
     }
     await wait(300);
     const doc: MaterialDocument = {
@@ -109,10 +112,37 @@ export const materialService = {
     return doc;
   },
 
+  /** Modo servidor: extrae el texto del archivo y lo parte en fragmentos (EN-007 y EN-012). */
+  async processOnServer(id: string): Promise<MaterialDocument> {
+    patchDocument(id, { status: 'procesando', currentStep: 'extraccion', errorMessage: null });
+    try {
+      const doc: MaterialDocument = await (await configurationFetch(`/documentos/${encodeURIComponent(id)}/procesar`, { method: 'POST' }, 180000)).json();
+      setState((s) => ({ ...s, documents: s.documents.map((d) => (d.id === id ? doc : d)) }));
+      return doc;
+    } catch (error) {
+      patchDocument(id, { status: 'error', currentStep: null, errorMessage: (error as Error).message });
+      throw error;
+    }
+  },
+
+  /** Fragmentos de un documento procesado en el servidor: lo que la generación puede citar. */
+  async listFragments(id: string): Promise<{ id: string; location: string; text: string }[]> {
+    return (await configurationFetch(`/documentos/${encodeURIComponent(id)}/fragmentos`)).json();
+  },
+
+  /** Modo servidor: busca el tema en Wikipedia, guarda cada artículo como material y lo procesa. */
+  async searchTopic(unitId: string, tema: string, maximo = 3): Promise<MaterialDocument[]> {
+    const docs: MaterialDocument[] = await (await configurationFetch('/documentos/desde-tema', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ unitId, tema, maximo }),
+    }, 180000)).json();
+    setState((s) => ({ ...s, documents: [...docs, ...s.documents.filter((d) => !docs.some((n) => n.id === d.id))] }));
+    return docs;
+  },
+
   /** Recorre los pasos del procesamiento sin procesar el archivo. */
   async processDocument(id: string, options: { simulateFailure?: boolean } = {}): Promise<void> {
     const doc = getState().documents.find((d) => d.id === id);
-    if (doc?.source === 'backend') throw new ServiceError('El archivo está guardado. La extracción real está pendiente.');
+    if (doc?.source === 'backend') { await this.processOnServer(id); return; }
     if (!doc) throw new ServiceError('El documento ya no existe.');
     if (doc.status === 'procesando') return;
     patchDocument(id, { status: 'procesando', currentStep: STEPS[0], errorMessage: null });

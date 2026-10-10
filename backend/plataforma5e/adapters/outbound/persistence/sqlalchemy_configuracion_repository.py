@@ -1,5 +1,5 @@
 """Cursos, archivos y sesiones persistentes. Los bytes se guardan en la misma BD."""
-from sqlalchemy import Column, String, JSON, LargeBinary, Float, UniqueConstraint, select
+from sqlalchemy import Column, String, JSON, LargeBinary, Float, Integer, Text, UniqueConstraint, delete, select
 from plataforma5e.adapters.outbound.persistence.db import Base, engine, SessionLocal
 from plataforma5e.adapters.outbound.persistence.sqlalchemy_generacion_repository import GeneracionORM, GeneracionDocenteORM
 
@@ -27,13 +27,24 @@ class DocumentoORM(Base):
     contenido = Column(LargeBinary, nullable=False)
     __table_args__ = (UniqueConstraint('docente', 'unidad', 'nombre'),)
 
+class FragmentoORM(Base):
+    """Fragmentos del material del docente (EN-012). Se borran junto con su documento."""
+    __tablename__ = 'ep002_fragmentos'
+    id = Column(String, primary_key=True)
+    docente = Column(String, nullable=False, index=True)
+    documento = Column(String, nullable=False, index=True)
+    unidad = Column(String, nullable=False, index=True)
+    orden = Column(Integer, nullable=False)
+    ubicacion = Column(String, nullable=False)
+    texto = Column(Text, nullable=False)
+
 from plataforma5e.adapters.outbound.persistence.errores import traducir_errores
 
 class SQLAlchemyConfiguracionRepository:
     @traducir_errores
     def __init__(self, generaciones):
         self._generaciones = generaciones
-        for tabla in (SesionORM, CursoORM, DocumentoORM, GeneracionDocenteORM):
+        for tabla in (SesionORM, CursoORM, DocumentoORM, FragmentoORM, GeneracionDocenteORM):
             tabla.__table__.create(engine, checkfirst=True)
 
     @traducir_errores
@@ -93,7 +104,9 @@ class SQLAlchemyConfiguracionRepository:
     def documento_borrar(self, docente, id):
         with SessionLocal() as s:
             e = s.get(DocumentoORM, id)
-            if e and e.docente == docente: s.delete(e); s.commit()
+            if e and e.docente == docente:
+                s.execute(delete(FragmentoORM).where(FragmentoORM.documento == id, FragmentoORM.docente == docente))
+                s.delete(e); s.commit()
 
     @traducir_errores
     def historial(self, docente):

@@ -1,4 +1,4 @@
-"""Contrato HTTP HU-053 / EN-006. La generación de contenido sigue en modo demo."""
+"""Contrato HTTP HU-053 / EN-006: con material procesado genera con RAG; sin él, usa la demo."""
 from fastapi import APIRouter, Depends
 from plataforma5e.adapters.inbound.autorizacion import obtener_autorizacion
 from fastapi.responses import JSONResponse
@@ -19,8 +19,9 @@ class SolicitudIntegrada(GenerationRequestModel):
         return {'unitId': self.unidad_id, 'outcomeId': self.resultado_aprendizaje_id, 'stage': self.etapa_5e, 'resourceType': self.tipo_recurso, 'quantity': self.cantidad, 'difficulty': self.dificultad, 'optionCount': self.alternativas, 'topK': self.top_k, 'evidenceThreshold': self.umbral_evidencia, 'instructions': self.indicaciones or '', 'audience': self.publico_objetivo, 'competency': self.competencia, 'modalities': self.modalidades}
 
 class GeneracionRespuesta(BaseModel):
-    mode: Literal['api_demo']
+    mode: Literal['api_demo', 'rag']
     notice: str
+    generator: dict | None = None
     request: dict
     resources: list[dict]
     available: int
@@ -28,7 +29,7 @@ class GeneracionRespuesta(BaseModel):
     documents: list[dict]
 
 def crear_router_generaciones(servicio: GeneracionService, configuracion=None) -> APIRouter:
-    router = APIRouter(prefix='/api/v1/generaciones', tags=['HU-053 Generación integrada (demo)'])
+    router = APIRouter(prefix='/api/v1/generaciones', tags=['EP-003 Generación de recursos'])
     @router.post('', response_model=GeneracionRespuesta)
     def generar(req: SolicitudIntegrada, authorization: str | None = Depends(obtener_autorizacion)):
         try:

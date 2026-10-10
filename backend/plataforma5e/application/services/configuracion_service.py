@@ -1,4 +1,4 @@
-"""EP-002: sesión de cuenta demo del servidor, catálogo y archivos; sin extracción."""
+"""EP-002: sesión de cuenta demo del servidor, catálogo y archivos. La extracción vive en material_service."""
 import hashlib
 import hmac
 import secrets
@@ -58,15 +58,39 @@ class ConfiguracionService:
             raise ConfiguracionError('UNIDADES_INVALIDAS', 'Conserva las unidades existentes y sus identificadores.')
         curso = {'id': id or f'curso-{uuid4()}', **{k: datos[k].strip() for k in ('code', 'name', 'term')}}
         curso['code'] = codigo
+        # Sumilla y logro: los usa la generación como contexto. Si no llegan, se conservan los anteriores.
+        for campo in ('sumilla', 'logro'):
+            valor = datos.get(campo)
+            curso[campo] = valor.strip() if isinstance(valor, str) else (anterior or {}).get(campo, '')
         unidades = []
         numero = max([u['number'] for u in previas], default=0)
         for u in datos['units']:
             anterior_u = next((p for p in previas if p['id'] == u.get('id')), None)
             if not anterior_u: numero += 1
-            unidades.append({'id': anterior_u['id'] if anterior_u else f'unidad-{uuid4()}', 'courseId': curso['id'], 'number': anterior_u['number'] if anterior_u else numero, 'title': u['title'].strip(), 'outcomes': anterior_u['outcomes'] if anterior_u else []})
+            numero_u = anterior_u['number'] if anterior_u else numero
+            unidades.append({'id': anterior_u['id'] if anterior_u else f'unidad-{uuid4()}', 'courseId': curso['id'], 'number': numero_u, 'title': u['title'].strip(), 'outcomes': self._resultados(u.get('outcomes'), anterior_u, numero_u)})
         curso['units'] = unidades
         self.repo.curso_guardar(docente, curso)
         return curso
+
+    @staticmethod
+    def _resultados(entrada, anterior_u, numero):
+        """Resultados de aprendizaje de la unidad. Sin entrada se conservan los anteriores;
+        con entrada se respetan los ids existentes y se crean códigos RA<unidad>.<n> para los nuevos."""
+        previos = anterior_u['outcomes'] if anterior_u else []
+        if entrada is None:
+            return previos
+        ids_previos = {o['id'] for o in previos}
+        resultado, usados = [], set()
+        for indice, o in enumerate(entrada, start=1):
+            texto = ' '.join(str(o.get('text', '')).split())
+            if not texto:
+                continue
+            ident = o.get('id') if o.get('id') in ids_previos and o.get('id') not in usados else f'ra-{uuid4().hex[:8]}'
+            usados.add(ident)
+            codigo = ' '.join(str(o.get('code') or '').split()) or f'RA{numero}.{indice}'
+            resultado.append({'id': ident, 'code': codigo, 'text': texto})
+        return resultado
 
     def registrar(self, docente, nombre, contenido, contexto):
         unidad = self.unidad(docente, contexto['unitId'])

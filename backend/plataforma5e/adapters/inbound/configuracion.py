@@ -17,14 +17,23 @@ class Login(Contrato):
     # La contraseña conserva espacios: pueden formar parte de ella.
     model_config = ConfigDict(extra='forbid')
 
+class ResultadoEntrada(Contrato):
+    id: str | None = None
+    code: str | None = Field(default=None, max_length=20)
+    text: str = Field(min_length=1, max_length=400)
+
 class UnidadEntrada(Contrato):
     id: str | None = None
     title: str = Field(min_length=1, max_length=150)
+    # None conserva los resultados que ya tenía la unidad; una lista los reemplaza.
+    outcomes: list[ResultadoEntrada] | None = Field(default=None, max_length=20)
 
 class CursoEntrada(Contrato):
     code: str = Field(min_length=1, max_length=30)
     name: str = Field(min_length=1, max_length=150)
     term: str = Field(min_length=1, max_length=30)
+    sumilla: str | None = Field(default=None, max_length=3000)
+    logro: str | None = Field(default=None, max_length=1000)
     units: list[UnidadEntrada] = Field(min_length=1, max_length=50)
 
 class ContextoDocumento(Contrato):

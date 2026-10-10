@@ -299,6 +299,14 @@ describe('indicadores', () => {
 describe('carga de material', () => {
   beforeEach(() => storage.clear());
 
+  it('una unidad nueva sin resultados de aprendizaje no bloquea la carga (error visto el 10/10)', async () => {
+    const app = await loadApp();
+    const course = app.courseService.save({ code: 'NUEVO-1', name: 'Curso nuevo', term: '2026-II', units: [{ title: 'Unidad sin RA' }] });
+    const unit = app.getState().units.find((u) => u.courseId === course.id)!;
+    const errors = app.validateRegistration({ file: { name: 'a.pdf', size: 10 }, unitId: unit.id, outcomeIds: [], documentType: 'Guía de práctica', usePermission: true });
+    expect(errors).toEqual({});
+  });
+
   it('valida formato, tamaño y permiso, y no guarda contenido', async () => {
     const app = await loadApp();
     expect(app.validateFile({ name: 'foto.png', size: 10 })).toMatch(/Formato/);

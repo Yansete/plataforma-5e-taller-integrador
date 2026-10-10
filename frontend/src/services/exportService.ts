@@ -40,7 +40,7 @@ export function formatIssues(format: ExportFormat, resources: Resource[]): strin
   if (info.itemsOnly) {
     const nonItems = resources.filter((r) => r.type !== 'item_opcion_multiple');
     if (nonItems.length > 0)
-      return `${info.name} solo admite ítems de opción múltiple. Quita ${nonItems.length} recurso(s) de otro tipo: el paquete con la secuencia completa se implementará en HU-009.`;
+      return `${info.name} solo admite ítems de opción múltiple. Quita ${nonItems.length} recurso(s) de otro tipo o descárgalos con «Descargar secuencia (.html)».`;
   }
   return null;
 }

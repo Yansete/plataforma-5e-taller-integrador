@@ -14,6 +14,10 @@ export interface Course {
   code: string;
   name: string;
   term: string;
+  /** Sumilla oficial del curso. La generación la usa como contexto. */
+  sumilla?: string;
+  /** Logro de aprendizaje del curso. */
+  logro?: string;
 }
 
 export interface LearningOutcome {
@@ -60,15 +64,17 @@ export interface MaterialDocument {
   currentStep: ProcessingStep | null;
   registeredAt: string;
   processedAt: string | null;
-  /** Fragmentos disponibles para recuperación. En documentos del usuario es 0: la extracción real está pendiente. */
+  /** Fragmentos disponibles para recuperación. En modo servidor los calcula el backend al procesar el archivo. */
   fragmentCount: number;
   pageCount: number | null;
   errorMessage: string | null;
   /** true si pertenece al conjunto de demostración precargado. */
   isDemo: boolean;
+  /** Material creado desde un tema: fuente abierta, enlace y licencia. */
+  origin?: { fuente: string; url: string; licencia: string; tema: string };
 }
 
-/** Fragmento (chunk) recuperable del material. En esta etapa son textos de demostración. */
+/** Fragmento (chunk) recuperable del material: de demostración o extraído del material real. */
 export interface Fragment {
   id: string;
   documentId: string;
@@ -137,13 +143,18 @@ export interface ResourceVersion {
   origin: 'generada' | 'regenerada';
   edited: boolean;
   createdAt: string;
-  /** Origen del contenido de esa versión: propuesta de la API o ejemplo local. */
-  source?: 'api_demo';
+  /** Origen del contenido de esa versión: ejemplos de la API, material real (rag) o ejemplo local. */
+  source?: ResourceSource;
 }
+
+/** `api_demo`: ejemplo preparado del backend. `rag`: generado a partir del material real del docente. */
+export type ResourceSource = 'api_demo' | 'rag';
 
 export interface Resource {
   /** HU-053: origen explícito de las propuestas recibidas por HTTP. */
-  source?: "api_demo";
+  source?: ResourceSource;
+  /** Generador que redactó la propuesta (modelo de IA o reglas). Solo en `rag`. */
+  generator?: string;
   id: string;
   /** Identificador del ejemplo preparado del que proviene (evita duplicados). */
   exampleId: string;
@@ -218,7 +229,7 @@ export interface GenerationRequest {
 }
 
 export type GenerationOutcome =
-  | { kind: 'ok'; created: Resource[]; skipped: number; available: number }
+  | { kind: 'ok'; created: Resource[]; skipped: number; available: number; notice?: string }
   | { kind: 'error'; code: string; message: string }
   | { kind: 'rechazado'; code: 'EVIDENCIA_INSUFICIENTE' | 'SIN_MATERIAL_PROCESADO'; message: string };
 

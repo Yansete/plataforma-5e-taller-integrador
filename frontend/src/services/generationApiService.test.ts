@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { requestGeneration, toApiRequest, validateApiGeneration } from './generationApiService';
+import { GENERATION_TIMEOUT_MS, requestGeneration, toApiRequest, validateApiGeneration } from './generationApiService';
 import { generationService } from './generationService';
 import { getState, resetState } from '../store/store';
 import { preferencesService } from './preferencesService';
@@ -50,6 +50,26 @@ describe('HU-053 frontera HTTP',()=>{
     vi.useFakeTimers();
     vi.stubGlobal('fetch',vi.fn().mockImplementation((_url,options)=>new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('abort'))))));
     const check=expect(requestGeneration(input)).rejects.toMatchObject({code:'TIEMPO_AGOTADO'});
-    await vi.advanceTimersByTimeAsync(10001);await check;vi.useRealTimers();
+    await vi.advanceTimersByTimeAsync(GENERATION_TIMEOUT_MS + 1);await check;vi.useRealTimers();
+  });
+});
+
+describe('Generación con el material real (rag)', () => {
+  function ragResponse() {
+    const base = response();
+    return { ...base, mode: 'rag', notice: 'Generado con Reglas a partir de 3 fragmento(s) de tu material.', generator: { descripcion: 'Reglas', usaIA: false },
+      resources: base.resources.map((r) => ({ ...r, source: 'rag', generator: 'Reglas' })) };
+  }
+  it('acepta propuestas del material real y muestra el aviso del generador', async () => {
+    expect(validateApiGeneration(ragResponse(), input).mode).toBe('rag');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(ragResponse()), { status: 200 })));
+    preferencesService.update('generationMode', 'api_demo');
+    const outcome = await generationService.generate(input);
+    expect(outcome).toMatchObject({ kind: 'ok', notice: expect.stringContaining('tu material') });
+    expect(getState().resources[0]).toMatchObject({ source: 'rag', generator: 'Reglas', status: 'pendiente' });
+  });
+  it('rechaza mezclar el modo de la respuesta con el origen de un recurso', () => {
+    const mixed = { ...ragResponse(), resources: response().resources };
+    expect(() => validateApiGeneration(mixed, input)).toThrow('incompatible');
   });
 });

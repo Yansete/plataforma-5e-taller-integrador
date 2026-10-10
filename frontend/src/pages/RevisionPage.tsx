@@ -433,12 +433,13 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
 
       <Card as="aside" aria-labelledby="evidencia-titulo">
       {resource.source === 'api_demo' && <Alert title="Propuesta recibida de la API de demostración">El recurso y sus fragmentos son ejemplos ficticios enviados por HTTP. Tu revisión se guarda localmente; la sincronización de decisiones con la API sigue pendiente.</Alert>}
+      {resource.source === 'rag' && <Alert title="Propuesta generada a partir de tu material">Redactada con {resource.generator ?? 'el generador del servidor'} usando los fragmentos de tu material que se muestran abajo. Revisa que cada afirmación coincida con su evidencia antes de aprobar. Tu revisión se guarda en este navegador.</Alert>}
 
         <CardHeader
           id="evidencia-titulo"
           title="Evidencia de origen"
-          overline="Datos de demostración"
-          description="Fragmentos del material citados por el recurso. En el sistema real provendrán de la recuperación RAG."
+          overline={resource.source === 'rag' ? 'Material del docente' : 'Datos de demostración'}
+          description={resource.source === 'rag' ? 'Fragmentos de tu material que el generador citó para este recurso.' : 'Fragmentos del material citados por el recurso. En el sistema real provendrán de la recuperación RAG.'}
         />
         {resource.citations.length === 0 ? (
           <Alert tone="warn" title="Sin evidencia citada">
