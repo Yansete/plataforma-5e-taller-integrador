@@ -1,24 +1,26 @@
 /**
- * Exportación (HU-018, HU-019, TA-002).
+ * Exportación (HU-054, ADR-005; antes HU-018 y HU-019).
  *
- * SIMULADA: no se genera ningún paquete QTI, SCORM ni Common Cartridge.
- * El flujo registra la solicitud y muestra qué pasos quedan pendientes.
+ * Formatos de SP-003: Moodle XML para Moodle y QTI 2.1 (ZIP) para Chamilo.
+ * En el prototipo el archivo se arma en el navegador con plantillas fijas (exportFormats.ts);
+ * la validación con el LMS y la importación real quedan pendientes (TA-006).
  * Solo se aceptan recursos en estado «aprobado».
  *
- * Futuro: POST /exportaciones → paquete + resultado del validador de 1EdTech.
+ * Futuro (EN-022): POST /api/v1/exportaciones → el backend genera el mismo archivo.
  */
-import { EXPORT_FORMATS } from '../data/catalog';
+import { EXPORT_FORMATS, TARGET_LMS_OPTIONS } from '../data/catalog';
 import { getState, setState } from '../store/store';
 import { newId } from '../store/initialState';
-import type { AppState, ExportFormat, ExportJob, ExportStepId, Resource } from '../types';
+import type { AppState, ExportFormat, ExportJob, ExportStepId, Resource, TargetLms } from '../types';
+import { buildMoodleXml, buildQti21Package } from './exportFormats';
 import { ServiceError, wait } from './simulation';
 
 export const EXPORT_STEPS: { id: ExportStepId; label: string; pendingNote: string }[] = [
   { id: 'seleccion', label: 'Selección de recursos aprobados', pendingNote: '' },
   { id: 'formato', label: 'Formato de destino', pendingNote: '' },
-  { id: 'empaquetado', label: 'Construcción del paquete', pendingNote: 'Simulado: no se genera ningún archivo de paquete (HU-018, HU-019).' },
-  { id: 'validacion', label: 'Validación de conformidad', pendingNote: 'Pendiente: requiere el validador QTI de 1EdTech y el exportador real (I16).' },
-  { id: 'importacion', label: 'Importación en el LMS', pendingNote: 'Pendiente: los LMS objetivo dependen de SP-001; pruebas en TA-002 (I17, I18).' },
+  { id: 'empaquetado', label: 'Construcción del archivo', pendingNote: 'Generado en el navegador con plantillas fijas (ADR-005). En la integración lo generará el backend (EN-022).' },
+  { id: 'validacion', label: 'Validación de conformidad', pendingNote: 'Pendiente: validar con el validador de Moodle XML del backend y con Chamilo (TA-006).' },
+  { id: 'importacion', label: 'Importación en el LMS', pendingNote: 'Pendiente: importar en instancias reales de Moodle y Chamilo (TA-006, I17).' },
 ];
 
 /** Única regla de exportabilidad: solo recursos aprobados explícitamente. */
@@ -26,16 +28,42 @@ export function exportableResources(resources: Resource[]): Resource[] {
   return resources.filter((r) => r.status === 'aprobado');
 }
 
+/** Formato que importa cada plataforma (SP-003). */
+export function formatForLms(lms: TargetLms): ExportFormat {
+  return TARGET_LMS_OPTIONS.find((o) => o.id === lms)?.format ?? 'moodle_xml';
+}
+
 /** Problemas de compatibilidad entre la selección y el formato. */
 export function formatIssues(format: ExportFormat, resources: Resource[]): string | null {
   const info = EXPORT_FORMATS.find((f) => f.id === format);
-  if (!info) return 'Formato desconocido.';
+  if (!info) return 'Formato desconocido. Elige Moodle XML (Moodle) o QTI 2.1 (Chamilo).';
   if (info.itemsOnly) {
     const nonItems = resources.filter((r) => r.type !== 'item_opcion_multiple');
     if (nonItems.length > 0)
-      return `${info.name} solo admite ítems de opción múltiple. Quita ${nonItems.length} recurso(s) de otro tipo o elige SCORM o Common Cartridge.`;
+      return `${info.name} solo admite ítems de opción múltiple. Quita ${nonItems.length} recurso(s) de otro tipo: el paquete con la secuencia completa se implementará en HU-009.`;
   }
   return null;
+}
+
+function slug(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+}
+
+export function exportFileName(format: ExportFormat, date: Date, courseCode = 'curso'): string {
+  const info = EXPORT_FORMATS.find((f) => f.id === format)!;
+  const stamp = date.toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  return `plataforma5e-${slug(courseCode)}-${info.lms}-${stamp}.${info.extension}`;
+}
+
+export interface ExportFile {
+  fileName: string;
+  mimeType: string;
+  data: string | Uint8Array;
 }
 
 export const exportService = {
@@ -51,56 +79,49 @@ export const exportService = {
       throw new ServiceError('La selección incluye recursos que no están aprobados. Solo se exporta lo aprobado.');
     const issue = formatIssues(input.format, selected as Resource[]);
     if (issue) throw new ServiceError(issue);
+    const expectedLms = EXPORT_FORMATS.find((f) => f.id === input.format)!.lms;
+    if (input.targetLms !== expectedLms)
+      throw new ServiceError(`${input.targetLms === 'chamilo' ? 'Chamilo' : 'Moodle'} no importa este formato. Usa ${input.targetLms === 'chamilo' ? 'QTI 2.1' : 'Moodle XML'}.`);
 
     onStep?.('seleccion');
     await wait(400);
     onStep?.('formato');
     await wait(400);
     onStep?.('empaquetado');
-    await wait(1000);
+    await wait(800);
 
+    const now = new Date();
     const job: ExportJob = {
       id: newId('exp'),
       format: input.format,
       resourceIds: [...input.resourceIds],
       targetLms: input.targetLms,
-      createdAt: new Date().toISOString(),
-      steps: { seleccion: 'completado', formato: 'completado', empaquetado: 'simulado', validacion: 'pendiente', importacion: 'pendiente' },
+      createdAt: now.toISOString(),
+      steps: { seleccion: 'completado', formato: 'completado', empaquetado: 'completado', validacion: 'pendiente', importacion: 'pendiente' },
+      fileName: exportFileName(input.format, now, state.courses[0]?.code),
     };
     setState((s) => ({ ...s, exports: [job, ...s.exports] }));
     return job;
   },
 
-  /** Resumen legible de la solicitud. NO es un paquete importable. */
-  buildSummary(job: ExportJob, state: AppState): string {
+  /**
+   * Archivo del trabajo de exportación, con el contenido VIGENTE de los recursos.
+   * Los trabajos de versiones anteriores del prototipo (QTI 3.0, SCORM…) no tienen archivo.
+   */
+  buildFile(job: ExportJob, state: AppState): ExportFile {
     const resources = job.resourceIds
       .map((id) => state.resources.find((r) => r.id === id))
       .filter((r): r is Resource => Boolean(r));
-    const summary = {
-      advertencia:
-        'RESUMEN DE DEMOSTRACIÓN. No es un paquete QTI, SCORM ni IMS Common Cartridge y no debe importarse en un LMS. La exportación y validación reales están pendientes.',
-      solicitud: job.id,
-      formato_solicitado: job.format,
-      lms_objetivo: job.targetLms,
-      fecha: job.createdAt,
-      pasos: job.steps,
-      recursos: resources.map((r) => ({
-        id: r.id,
-        unidad: r.unitId,
-        resultado_aprendizaje: r.outcomeId,
-        etapa_5e: r.stage,
-        tipo: r.type,
-        titulo: r.title,
-        contenido: r.body,
-        alternativas: r.options?.filter((o) => o.isCorrect || o.decision === 'aceptado').map((o) => ({
-          texto: o.text,
-          correcta: o.isCorrect,
-          retroalimentacion: o.feedback,
-        })),
-        evidencia: r.citations,
-        editado_por_docente: r.edited,
-      })),
-    };
-    return JSON.stringify(summary, null, 2);
+    if (resources.length === 0) throw new ServiceError('Los recursos de esta exportación ya no existen.');
+    if (resources.some((r) => r.status !== 'aprobado'))
+      throw new ServiceError('Algún recurso de esta exportación volvió a revisión. Apruébalo de nuevo y repite la exportación.');
+    const fileName = job.fileName ?? exportFileName(job.format, new Date(job.createdAt), state.courses[0]?.code);
+    if (job.format === 'moodle_xml') {
+      return { fileName, mimeType: 'application/xml', data: buildMoodleXml(resources, state.courses[0]?.name ?? 'Plataforma 5E') };
+    }
+    if (job.format === 'qti21') {
+      return { fileName, mimeType: 'application/zip', data: buildQti21Package(resources) };
+    }
+    throw new ServiceError('Este registro es de un formato que ya no se usa (QTI 3.0, SCORM o Common Cartridge) y no tiene archivo.');
   },
 };

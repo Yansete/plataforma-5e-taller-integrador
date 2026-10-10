@@ -80,7 +80,8 @@ export const generationService = {
     onPhase?.('verificacion');
     await wait(700);
 
-    const existing = new Set(getState().resources.map((r) => r.exampleId));
+    // Incluye los ejemplos de versiones anteriores (HU-054) para no volver a proponerlos.
+    const existing = new Set(getState().resources.flatMap((r) => [r.exampleId, ...r.previousVersions.map((v) => v.exampleId)]));
     const fresh = candidates.filter((e) => !existing.has(e.exampleId));
     const chosen = fresh.slice(0, Math.max(0, input.quantity));
     const now = new Date().toISOString();

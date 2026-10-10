@@ -1,7 +1,7 @@
 import { DEMO_COURSE, DEMO_DOCUMENTS, DEMO_UNITS, EXAMPLES, INITIAL_EXAMPLE_IDS, type ExampleResource } from '../data/demoContent';
 import type { AppState, GenerationRequest, Resource } from '../types';
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 let counter = 0;
 /** Identificador local. El backend asignará los definitivos. */
@@ -42,6 +42,9 @@ export function instantiateExample(example: ExampleResource, requestId: string, 
     createdAt: now,
     updatedAt: now,
     decidedAt: null,
+    version: 1,
+    versionOrigin: 'generada',
+    previousVersions: [],
   };
 }
 
@@ -80,8 +83,8 @@ export function createInitialState(): AppState {
       reviewFilters: { unitId: 'todas', stage: 'todas', status: 'todos' },
       selectedResourceId: resources[0]?.id ?? null,
       exportSelection: [],
-      exportFormat: 'qti30',
-      exportTargetLms: 'por_definir',
+      exportFormat: 'moodle_xml',
+      exportTargetLms: 'moodle',
       dashboardFilters: { unitId: 'todas', period: 'todo', scope: 'tablero' },
       uploadDefaults: { unitId: DEMO_UNITS[0].id },
     },

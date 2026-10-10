@@ -2,7 +2,7 @@
  * Catálogos fijos: etapas 5E, tipos de recurso, formatos y motivos.
  * Las descripciones de etapas y recursos provienen del Anexo A del Project Charter.
  */
-import type { DiscardReason, ExportFormat, ResourceType, Stage5E } from '../types';
+import type { DiscardReason, ExportFormat, ResourceType, Stage5E, TargetLms } from '../types';
 
 export interface StageInfo {
   id: Stage5E;
@@ -90,57 +90,47 @@ export interface ExportFormatInfo {
   description: string;
   /** true si el formato solo admite ítems de opción múltiple. */
   itemsOnly: boolean;
-  role: 'principal' | 'respaldo';
+  /** Plataforma que importa este formato (SP-003). */
+  lms: TargetLms;
+  extension: string;
 }
 
+/**
+ * Formatos definidos en SP-003 y HU-054. Reemplazan a QTI 3.0, SCORM, Common Cartridge y GIFT:
+ * Moodle importa Moodle XML y Chamilo importa QTI 2.1.
+ */
 export const EXPORT_FORMATS: ExportFormatInfo[] = [
-  {
-    id: 'qti30',
-    name: 'QTI 3.0',
-    description: 'Intercambio de ítems de evaluación (HU-018). Solo admite ítems de opción múltiple.',
-    itemsOnly: true,
-    role: 'principal',
-  },
-  {
-    id: 'scorm',
-    name: 'SCORM',
-    description: 'Paquete con material y evaluación de la secuencia (HU-019).',
-    itemsOnly: false,
-    role: 'principal',
-  },
-  {
-    id: 'common_cartridge',
-    name: 'IMS Common Cartridge',
-    description: 'Paquete con material y evaluación de la secuencia (HU-019).',
-    itemsOnly: false,
-    role: 'principal',
-  },
   {
     id: 'moodle_xml',
     name: 'Moodle XML',
-    description: 'Exportador nativo de respaldo previsto en el Project Charter. Solo ítems.',
+    description: 'Banco de preguntas para Moodle (Administración del curso → Banco de preguntas → Importar). Solo ítems de opción múltiple.',
     itemsOnly: true,
-    role: 'respaldo',
+    lms: 'moodle',
+    extension: 'xml',
   },
   {
-    id: 'gift',
-    name: 'GIFT',
-    description: 'Exportador nativo de respaldo previsto en el Project Charter. Solo ítems.',
+    id: 'qti21',
+    name: 'QTI 2.1',
+    description: 'Paquete ZIP con imsmanifest.xml e ítems QTI 2.1 para Chamilo (Ejercicios → Importar QTI2). Solo ítems de opción múltiple.',
     itemsOnly: true,
-    role: 'respaldo',
+    lms: 'chamilo',
+    extension: 'zip',
   },
 ];
 
-export const exportFormatName = (id: ExportFormat): string =>
-  EXPORT_FORMATS.find((f) => f.id === id)?.name ?? id;
+export const exportFormatName = (id: string): string => {
+  const legacy: Record<string, string> = { qti30: 'QTI 3.0', scorm: 'SCORM', common_cartridge: 'IMS Common Cartridge', gift: 'GIFT' };
+  return EXPORT_FORMATS.find((f) => f.id === id)?.name ?? legacy[id] ?? id;
+};
 
-/**
- * Los LMS objetivo NO están definidos: dependen del spike SP-001 (matriz de compatibilidad).
- * Por eso la lista solo ofrece una opción genérica.
- */
-export const TARGET_LMS_OPTIONS = [
-  { id: 'por_definir', label: 'LMS objetivo por definir (pendiente de SP-001)' },
+/** Plataformas objetivo según SP-003 (matriz de compatibilidad). */
+export const TARGET_LMS_OPTIONS: { id: TargetLms; label: string; format: ExportFormat }[] = [
+  { id: 'moodle', label: 'Moodle', format: 'moodle_xml' },
+  { id: 'chamilo', label: 'Chamilo', format: 'qti21' },
 ];
+
+export const targetLmsName = (id: string): string =>
+  TARGET_LMS_OPTIONS.find((o) => o.id === id)?.label ?? (id === 'por_definir' ? 'Por definir' : id);
 
 export const DOCUMENT_TYPES = [
   'Separata o apuntes de clase',

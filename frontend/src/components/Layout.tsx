@@ -8,12 +8,13 @@ import { Alert, Button, ConfirmDialog } from './ui';
 
 export const ROUTES: { to: string; label: string; icon: IconName; step?: number; title: string }[] = [
   { to: '/', label: 'Inicio', icon: 'home', title: 'Inicio del docente' },
-  { to: '/cursos', label: 'Cursos y unidades', icon: 'home', title: 'Cursos y unidades' },
+  { to: '/cursos', label: 'Cursos y unidades', icon: 'book', title: 'Cursos y unidades' },
   { to: '/carga', label: 'Carga de material', icon: 'upload', step: 1, title: 'Carga de material' },
   { to: '/chat', label: 'Solicitud por chat', icon: 'sliders', title: 'Solicitud por chat' },
   { to: '/configuracion', label: 'Configuración', icon: 'sliders', step: 2, title: 'Configuración de la generación' },
-  { to: '/revision', label: 'Revisión docente', icon: 'review', step: 3, title: 'Revisión docente' },
-  { to: '/exportacion', label: 'Exportación', icon: 'export', step: 4, title: 'Exportación' },
+  { to: '/secuencia', label: 'Secuencia 5E', icon: 'layers', step: 3, title: 'Secuencia 5E' },
+  { to: '/revision', label: 'Revisión docente', icon: 'review', step: 4, title: 'Revisión docente' },
+  { to: '/exportacion', label: 'Exportación', icon: 'export', step: 5, title: 'Exportación' },
   { to: '/indicadores', label: 'Indicadores', icon: 'chart', title: 'Tablero de indicadores' },
 ];
 

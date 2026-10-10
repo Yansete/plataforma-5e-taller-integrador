@@ -158,4 +158,6 @@ export const ACTION_LABELS: Record<ReviewAction, string> = {
   descartar_distractor: 'Descartó un distractor',
   editar_distractor: 'Editó un distractor',
   revertir_distractor: 'Reabrió un distractor',
+  regenerar: 'Pidió otra versión del recurso',
+  restaurar_version: 'Restauró una versión anterior',
 };

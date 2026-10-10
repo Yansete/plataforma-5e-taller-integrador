@@ -61,6 +61,25 @@ describe('almacén del cliente', () => {
     expect(migrated.ui.exportTargetLms).toBe('moodle');
   });
 
+  it('HU-054 migra la versión 2: añade versiones a los recursos y cambia QTI 3.0 por Moodle XML', async () => {
+    const app = await recargar();
+    const state = app.getState();
+    const viejos = state.resources.map((r) => {
+      const copia: Record<string, unknown> = { ...r };
+      delete copia.version;
+      delete copia.versionOrigin;
+      delete copia.previousVersions;
+      return copia;
+    });
+    storage.setItem(app.STORAGE_KEY, JSON.stringify({ ...state, version: 2, resources: viejos, ui: { ...state.ui, exportFormat: 'qti30', exportTargetLms: 'por_definir' } }));
+    const migrated = (await recargar()).getState();
+    expect(migrated.version).toBe(3);
+    expect(migrated.resources.every((r) => r.version === 1 && r.versionOrigin === 'generada' && r.previousVersions.length === 0)).toBe(true);
+    expect(migrated.resources.map((r) => r.id)).toEqual(state.resources.map((r) => r.id));
+    expect(migrated.ui.exportFormat).toBe('moodle_xml');
+    expect(migrated.ui.exportTargetLms).toBe('moodle');
+  });
+
   it('descarta lo guardado si es de otra versión o está dañado', async () => {
     const app = await recargar();
     storage.setItem(app.STORAGE_KEY, JSON.stringify({ ...app.getState(), version: -1, ui: { ...app.getState().ui, exportTargetLms: 'viejo' } }));

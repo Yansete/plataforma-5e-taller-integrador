@@ -10,7 +10,9 @@ export { generationService, availableExamples, unitHasUsableMaterial, PHASE_LABE
 export type { GenerationPhase } from './generationService';
 export { reviewService, approvalBlockers, ACTION_LABELS, DEMO_USER, MIN_DISTRACTORS } from './reviewService';
 export type { ResourceEdits } from './reviewService';
-export { exportService, exportableResources, formatIssues, EXPORT_STEPS } from './exportService';
+export { regenerationService, regenerationBlocker } from './regenerationService';
+export { exportService, exportableResources, formatIssues, formatForLms, EXPORT_STEPS } from './exportService';
+export { buildMoodleXml, buildQti21Item, buildQti21Manifest, buildQti21Package, createZip, crc32 } from './exportFormats';
 export { computeIndicators, resourcesInScope, inPeriod } from './indicatorService';
 export { preferencesService } from './preferencesService';
 export { ServiceError } from './simulation';

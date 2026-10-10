@@ -101,9 +101,14 @@ export function ConfiguracionPage() {
         <p>Confirma esta interpretación antes de enviarla al backend. Puedes cancelar para corregirla.</p>
       </ConfirmDialog>
       <PageHeader
-        overline="Paso 2 · Configuración de la generación"
+        overline="Paso 2 · Solicitud por selectores"
         title="Configuración de la generación"
         description="Elige la unidad, el resultado de aprendizaje y la etapa 5E. La generación está simulada con ejemplos preparados; todo lo propuesto pasa a revisión."
+        actions={
+          <ButtonLink to="/secuencia" icon="arrowRight">
+            Ver secuencia 5E
+          </ButtonLink>
+        }
       />
 
       <div className="cluster"><ButtonLink to="/chat">Preparar solicitud por chat</ButtonLink></div>

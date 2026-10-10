@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-**Última actualización:** 10/10/2026 · **Etapa:** frontend de demostración v0.1.0 (primera versión completa para probar).
+**Última actualización:** 10/10/2026 · **Etapa:** frontend de demostración v0.2.0 (recorrido completo enlazado, HU-054; integración con backend EP-002).
 
 ## Resumen
 
@@ -12,12 +12,14 @@ Existe un frontend navegable con modo local HU-045/HU-046 y modo EP-002 conectad
 | Área | Qué hace | Historias relacionadas |
 |---|---|---|
 | Sistema de diseño | Tokens en `tokens.css`, componentes base únicos, iconos de trazo, foco visible, controles de 44 px | HU-001 (parcial: falta validación con docentes) |
-| Navegación | Barra lateral de 244 px, recorrido en 4 pasos + Inicio + Indicadores, menú desplegable bajo 960 px, enlace «Saltar al contenido», página 404 | — |
+| Navegación | Barra lateral de 244 px, recorrido de 5 pasos enlazados (carga → solicitud por selectores o chat → secuencia 5E → revisión → exportación) + Inicio, Cursos e Indicadores (HU-054), menú desplegable bajo 960 px, enlace «Saltar al contenido», página 404 | — |
 | 1. Inicio | Resumen, pasos del recorrido con «siguiente paso», cobertura 5E por unidad, recursos recientes | — |
 | 2. Carga | Selección local (arrastrar o elegir), validación de formato/tamaño/vacío/duplicado, contexto (unidad, RA, tipo, etapa sugerida, permiso), registro de metadatos, procesamiento **simulado** por pasos, error simulado y reintento, quitar con confirmación | HU-002, HU-003 (solo interfaz) |
 | 3. Configuración | Unidad, RA, etapa 5E, tipo de recurso, cantidad, dificultad, alternativas, top-k, umbral, indicaciones; evidencia disponible; plan 5E de la unidad; rechazo simulado; historial de solicitudes | HU-005 a HU-009, HU-011 a HU-014 (solo interfaz) |
-| 4. Revisión | Cola filtrable, contenido junto a evidencia de origen, aceptar/editar/descartar cada distractor (con motivo), editar/aprobar/descartar/devolver cada recurso, bloqueos de aprobación explicados, advertencia simulada de fiabilidad, registro de decisiones | HU-010, EN-006 (local), HU-015 (solo visual) |
-| 5. Exportación | Solo lista recursos aprobados, selección persistente, 5 formatos, compatibilidad QTI/ítems, flujo de 5 pasos con pendientes explícitos, historial, resumen JSON **no importable** | HU-018, HU-019 (solo interfaz) |
+| Solicitud por chat (HU-054) | Pedido en lenguaje natural, interpretación **simulada** con reglas de palabras clave (unidad, etapa, tipo, cantidad, dificultad), corrección y confirmación antes de generar | HU-038/HU-046 (prototipo) |
+| Secuencia 5E (HU-054) | Tablero de las 5 etapas de una unidad con sus recursos y estado; abre cada recurso en revisión | HU-040/HU-044 (prototipo) |
+| 4. Revisión | Botón **Regenerar** (otra versión simulada que conserva la anterior), historial de versiones con restauración (HU-054), cola filtrable, contenido junto a evidencia de origen, aceptar/editar/descartar cada distractor (con motivo), editar/aprobar/descartar/devolver cada recurso, bloqueos de aprobación explicados, advertencia simulada de fiabilidad, registro de decisiones | HU-010, EN-006 (local), HU-015 (solo visual) |
+| 5. Exportación | Solo lista recursos aprobados; destino Moodle (**Moodle XML**) o Chamilo (**QTI 2.1** en ZIP) según SP-003; el archivo se genera en el navegador con plantillas fijas y se descarga; historial con descarga | HU-054 (prototipo), HU-008, HU-042 |
 | 6. Indicadores | 10 indicadores de HU-021 o los 23, filtros por unidad y periodo, vista de tarjetas o tabla, origen de cada valor, registro de decisiones | HU-021 (parcial) |
 | Persistencia | Estado, decisiones y preferencias en `localStorage` (solo metadatos); restablecer demo | — |
 | Base vectorial local (05/10/2026) | PostgreSQL 17 + pgvector 0.8.1 en Docker; migraciones con dbmate; tabla `fragmento` con `embedding vector(768)`, índice HNSW coseno, índice por unidad y GIN `spanish`; script de verificación | EN-011. El frontend aún no la usa |
@@ -29,7 +31,8 @@ Existe un frontend navegable con modo local HU-045/HU-046 y modo EP-002 conectad
 - **Generación**: entrega ejemplos redactados a mano en `data/demoContent.ts`, filtrados por unidad, etapa, tipo y RA. No hay IA, recuperación ni verificación de anclaje. Dificultad, alternativas, top-k, umbral e indicaciones se registran pero no cambian el resultado.
 - **Evidencia de origen**: 12 fragmentos ficticios de 3 documentos ficticios.
 - **Filtro de fiabilidad**: una única advertencia fija en un distractor de ejemplo.
-- **Exportación**: registra la solicitud; no genera paquetes. El JSON descargable avisa de que no es importable.
+- **Exportación**: el archivo Moodle XML / QTI 2.1 se arma en el navegador (no en el backend). El Moodle XML pasa el validador del backend (`tests/e2e/validador_moodle_xml.py`); falta importarlo en instancias reales (TA-006).
+- **Regeneración**: usa otro ejemplo preparado o una variante del recurso (otra redacción y otro orden de alternativas); no llama a un modelo.
 - **Usuario**: HU-045 conserva sesión local simulada. EP-002 añade una cuenta demo comprobada por servidor, token revocable y rutas protegidas; registro de usuarios y roles de producción de HU-001 siguen pendientes.
 
 ## Indicadores: qué es real y qué no
@@ -49,7 +52,7 @@ Existe un frontend navegable con modo local HU-045/HU-046 y modo EP-002 conectad
 - Ingesta real, segmentación, vectorización y recuperación híbrida (HU-002 a HU-005).
 - Generación anclada, verificación de anclaje y rechazo real (HU-006, HU-007), etapas 5E (HU-008 a HU-017).
 - Registro de decisiones en servidor con usuario autenticado (EN-006).
-- Exportador QTI 3.0, empaquetado SCORM/Common Cartridge, validador 1EdTech y pruebas en LMS (HU-018, HU-019, TA-002, SP-001).
+- Conectar revisión y exportación del frontend a la API del backend (EN-022) y verificar la importación en Moodle y Chamilo (TA-006). QTI 3.0 y SCORM se descartaron en HU-054 según SP-003.
 - Analítica de ítems con estudiantes (HU-020) e indicadores del piloto.
 - Autenticación y roles docente/estudiante/administrador (TA-001, RN-003).
 - Validación del sistema de diseño y del prototipo con al menos dos docentes (criterio de HU-001): **no realizada**.
