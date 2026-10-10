@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { DocumentStatusTag } from '../components/domain';
 import {
@@ -12,6 +12,7 @@ import {
   EmptyState,
   PageHeader,
   SelectField,
+  TextField,
 } from '../components/ui';
 import { DOCUMENT_TYPES, MAX_FILE_SIZE_MB, STAGES, stageName } from '../data/catalog';
 import {
@@ -53,12 +54,30 @@ export function CargaPage() {
   const [message, setMessage] = useState<{ tone: 'success' | 'warn'; text: string } | null>(null);
   const [unitFilter, setUnitFilter] = useState('todas');
   const [toRemove, setToRemove] = useState<MaterialDocument | null>(null);
+  const [topic, setTopic] = useState('');
+  const [searching, setSearching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
   const outcomesErrorId = useId();
   const permissionErrorId = useId();
 
   const unit = catalogService.getUnit(unitId);
+  useEffect(() => { setTopic(unit?.title ?? ''); }, [unit?.id, unit?.title]);
+
+  const searchTopic = async () => {
+    setMessage(null);
+    if (topic.trim().length < 3) { setMessage({ tone: 'warn', text: 'Escribe un tema de al menos 3 caracteres.' }); return; }
+    setSearching(true);
+    try {
+      const docs = await materialService.searchTopic(unitId, topic.trim());
+      const total = docs.reduce((n, d) => n + d.fragmentCount, 0);
+      setMessage({ tone: 'success', text: `Se agregaron ${docs.length} artículo(s) de Wikipedia sobre «${topic.trim()}» con ${total} fragmento(s). Revisa que correspondan a tu curso antes de generar.` });
+    } catch (err) {
+      setMessage({ tone: 'warn', text: err instanceof Error ? err.message : 'No se pudo buscar el tema.' });
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const visibleDocs = useMemo(
     () => documents.filter((d) => unitFilter === 'todas' || d.unitId === unitFilter),
@@ -108,7 +127,11 @@ export function CargaPage() {
     try {
       const doc = await materialService.registerDocument({ ...input, file: file! });
       clearForm();
-      setMessage({ tone: 'success', text: connected ? `«${doc.fileName}» guardado en el servidor. La extracción real está pendiente.` : `«${doc.fileName}» registrado. El procesamiento simulado está en curso en la lista de abajo.` });
+      setMessage(connected
+        ? doc.status === 'procesado'
+          ? { tone: 'success', text: `«${doc.fileName}» guardado en el servidor y procesado: ${doc.fragmentCount} fragmento(s) listos para generar.` }
+          : { tone: 'warn', text: `«${doc.fileName}» guardado en el servidor, pero no se pudo procesar: ${doc.errorMessage ?? 'error desconocido'}` }
+        : { tone: 'success', text: `«${doc.fileName}» registrado. El procesamiento simulado está en curso en la lista de abajo.` });
       if (!connected) void materialService.processDocument(doc.id, { simulateFailure });
     } catch (err) {
       setMessage({ tone: 'warn', text: err instanceof Error ? err.message : 'No se pudo registrar el documento.' });
@@ -298,12 +321,12 @@ export function CargaPage() {
                 <span className="caption">{connected ? 'Se guardan el archivo completo y sus metadatos en la base de datos del servidor.' : 'Se guardan solo los metadatos en este navegador.'}</span>
               </div>
             </li>
-            <li className="step step--pending">
+            <li className={connected ? 'step' : 'step step--pending'}>
               <span className="step__marker" aria-hidden="true">3</span>
               <div className="step__body">
-                <span className="title">{connected ? 'Extracción pendiente' : 'Procesamiento simulado'}</span>
+                <span className="title">{connected ? 'Procesamiento en el servidor' : 'Procesamiento simulado'}</span>
                 <span className="caption">
-                  {connected ? 'Tu archivo queda registrado y descargable, con 0 fragmentos. No se ejecuta extracción ni generación desde su contenido.' : 'Los pasos son simulados, sin procesar el contenido. El documento queda con 0 fragmentos.'}
+                  {connected ? 'El servidor extrae el texto (PDF, PPTX o TXT), lo parte en fragmentos de unas 220 palabras y guarda la página de cada uno. Esos fragmentos son la evidencia que cita la generación.' : 'Los pasos son simulados, sin procesar el contenido. El documento queda con 0 fragmentos.'}
                 </span>
               </div>
             </li>
@@ -311,10 +334,23 @@ export function CargaPage() {
         </Card>
       </div>
 
+      {connected && (
+        <Card>
+          <CardHeader title="¿No tienes material? Busca el tema" description="El sistema busca artículos en Wikipedia en español, los guarda como material de la unidad elegida arriba y los procesa igual que un documento. Úsalo como apoyo: tu propio material es la mejor evidencia." />
+          <div className="form-grid">
+            <TextField label="Tema a buscar" value={topic} maxLength={120} onChange={setTopic} hint={`Se guardará en: ${unit ? `Unidad ${unit.number}: ${unit.title}` : 'elige una unidad'}`} />
+          </div>
+          <div className="btn-row" style={{ marginTop: 'var(--space-3)' }}>
+            <Button icon="layers" onClick={() => void searchTopic()} loading={searching} disabled={searching || !unitId}>Buscar y procesar</Button>
+            <span className="caption">Textos de Wikipedia con licencia CC BY-SA 4.0. Cada recurso generado citará el artículo de origen.</span>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <CardHeader
           title="Material registrado"
-          description="Los documentos de demostración ya incluyen fragmentos de ejemplo para la generación simulada."
+          description={connected ? 'Cada documento procesado indica cuántos fragmentos tiene. Con «Ver fragmentos» ves exactamente lo que la generación puede citar.' : 'Los documentos de demostración ya incluyen fragmentos de ejemplo para la generación simulada.'}
           actions={
             <SelectField
               label="Filtrar por unidad"
@@ -356,8 +392,17 @@ export function CargaPage() {
 
 function DocumentRow({ doc, onRemove }: { doc: MaterialDocument; onRemove: () => void }) {
   const [downloadError, setDownloadError] = useState('');
+  const [fragments, setFragments] = useState<{ id: string; location: string; text: string }[] | null>(null);
+  const [fragmentsError, setFragmentsError] = useState('');
+  const [loadingFragments, setLoadingFragments] = useState(false);
+  const server = doc.source === 'backend';
   const stepIndex = doc.currentStep ? STEP_ORDER.indexOf(doc.currentStep) : -1;
   const outcomes = doc.outcomeIds.map((id) => catalogService.getOutcome(id)?.code).filter(Boolean).join(', ');
+  const toggleFragments = async () => {
+    if (fragments) { setFragments(null); return; }
+    setFragmentsError(''); setLoadingFragments(true);
+    try { setFragments(await materialService.listFragments(doc.id)); } catch (e) { setFragmentsError((e as Error).message); } finally { setLoadingFragments(false); }
+  };
   return (
     <li className="card card--inner stack stack--tight">
       <div className="cluster" style={{ justifyContent: 'space-between' }}>
@@ -365,6 +410,7 @@ function DocumentRow({ doc, onRemove }: { doc: MaterialDocument; onRemove: () =>
           <Icon name="file" />
           <strong className="break">{doc.fileName}</strong>
           {doc.isDemo && <span className="tag">Demostración</span>}
+          {doc.origin && <span className="tag">{doc.origin.fuente}</span>}
         </span>
         <DocumentStatusTag status={doc.status} />
       </div>
@@ -372,39 +418,59 @@ function DocumentRow({ doc, onRemove }: { doc: MaterialDocument; onRemove: () =>
         {unitShortLabel(doc.unitId)} · {outcomes || 'Sin RA'} · {doc.documentType} · {doc.kind.toUpperCase()} · {formatBytes(doc.sizeBytes)}
         {doc.suggestedStage && ` · Etapa sugerida: ${stageName(doc.suggestedStage)}`} · Registrado {formatDateTime(doc.registeredAt)}
       </p>
+      {doc.origin && (
+        <p className="caption">
+          Fuente: <a href={doc.origin.url} target="_blank" rel="noreferrer">{doc.origin.url}</a> · Licencia {doc.origin.licencia}
+        </p>
+      )}
 
       {doc.status === 'procesando' && (
         <div className="stack stack--tight" role="status">
           <span className="cluster text-ui">
             <span className="spinner" aria-hidden="true" />
-            {`Paso ${stepIndex + 1} de 3: ${doc.currentStep ? STEP_LABELS[doc.currentStep] : ''} (simulado)`}
+            {server ? 'Extrayendo el texto y creando los fragmentos en el servidor…' : `Paso ${stepIndex + 1} de 3: ${doc.currentStep ? STEP_LABELS[doc.currentStep] : ''} (simulado)`}
           </span>
-          <div className="progress" aria-hidden="true">
-            <div className="progress__fill" style={{ width: `${((stepIndex + 1) / 3) * 100}%` }} />
-          </div>
+          {!server && (
+            <div className="progress" aria-hidden="true">
+              <div className="progress__fill" style={{ width: `${((stepIndex + 1) / 3) * 100}%` }} />
+            </div>
+          )}
         </div>
       )}
 
       {doc.status === 'procesado' && (
         <p className="text-ui">
-          {doc.isDemo
-            ? `${doc.fragmentCount} fragmentos de ejemplo disponibles para la generación simulada.`
-            : '0 fragmentos: el procesamiento fue simulado. La extracción real está pendiente del backend (HU-002).'}
+          {server
+            ? `${doc.fragmentCount} fragmento(s) listos para generar${doc.pageCount ? ` · ${doc.pageCount} página(s), diapositiva(s) o sección(es) leídas` : ''}.`
+            : doc.isDemo
+              ? `${doc.fragmentCount} fragmentos de ejemplo disponibles para la generación simulada.`
+              : '0 fragmentos: el procesamiento fue simulado. Inicia sesión en modo servidor para procesar el archivo de verdad.'}
         </p>
       )}
 
       {doc.status === 'error' && <Alert tone="warn" title="El procesamiento no terminó">{doc.errorMessage}</Alert>}
-
-      {doc.source === 'backend' && <p className="caption">Archivo guardado en el servidor · Extracción pendiente · 0 fragmentos</p>}
+      {server && doc.status === 'registrado' && <p className="caption">Archivo guardado en el servidor, todavía sin procesar.</p>}
       {downloadError && <Alert tone="warn" role="alert">{downloadError}</Alert>}
+      {fragmentsError && <Alert tone="warn" role="alert">{fragmentsError}</Alert>}
+      {fragments && (
+        <ol className="stack stack--tight" aria-label={`Fragmentos de ${doc.fileName}`} style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>
+          {fragments.slice(0, 30).map((f) => (
+            <li key={f.id} className="caption"><strong>{f.location}:</strong> {f.text.length > 280 ? `${f.text.slice(0, 280)}…` : f.text}</li>
+          ))}
+          {fragments.length > 30 && <li className="caption">… y {fragments.length - 30} fragmento(s) más.</li>}
+        </ol>
+      )}
       <div className="btn-row">
-        {doc.source === 'backend' && <Button compact onClick={() => { setDownloadError(''); void materialService.downloadDocument(doc).catch((e) => setDownloadError(e.message)); }}>Descargar archivo</Button>}
-        {doc.source !== 'backend' && (doc.status === 'registrado' || doc.status === 'error') && (
-          <Button compact icon="reset" onClick={() => void materialService.processDocument(doc.id)}>
-            {doc.status === 'error' ? 'Reintentar procesamiento' : 'Procesar (simulado)'}
+        {server && <Button compact onClick={() => { setDownloadError(''); void materialService.downloadDocument(doc).catch((e) => setDownloadError(e.message)); }}>Descargar archivo</Button>}
+        {server && doc.status === 'procesado' && doc.fragmentCount > 0 && (
+          <Button compact onClick={() => void toggleFragments()} loading={loadingFragments}>{fragments ? 'Ocultar fragmentos' : 'Ver fragmentos'}</Button>
+        )}
+        {(doc.status === 'registrado' || doc.status === 'error') && (
+          <Button compact icon="reset" onClick={() => void materialService.processDocument(doc.id).catch(() => undefined)}>
+            {server ? (doc.status === 'error' ? 'Volver a procesar' : 'Procesar') : doc.status === 'error' ? 'Reintentar procesamiento' : 'Procesar (simulado)'}
           </Button>
         )}
-        <Button compact variant="danger" icon="trash" onClick={onRemove} disabled={doc.status === 'procesando' || (sessionService.isBackend() && doc.source !== 'backend')}>
+        <Button compact variant="danger" icon="trash" onClick={onRemove} disabled={doc.status === 'procesando' || (sessionService.isBackend() && !server)}>
           Quitar
         </Button>
       </div>

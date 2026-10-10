@@ -35,7 +35,7 @@ test('EP-002 sesión, curso, archivo y solicitud se recuperan desde el backend',
   await page.getByRole('button', { name: 'Confirmar y continuar a configuración' }).click();
   await expect(page.getByLabel('Público objetivo / Ciclo')).toHaveValue('Tercer ciclo EP002');
   const send = page.waitForResponse((r) => r.url().endsWith('/api/v1/generaciones') && r.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Solicitar propuestas a la API' }).click();
+  await page.getByRole('button', { name: 'Generar propuestas con mi material' }).click();
   await expect(page.getByRole('dialog', { name: 'Confirmar solicitud' })).toContainText('Tercer ciclo EP002');
   await page.getByRole('button', { name: 'Confirmar y solicitar' }).click();
   expect((await send).status()).toBe(200);

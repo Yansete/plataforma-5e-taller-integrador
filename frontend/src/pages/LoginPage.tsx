@@ -2,13 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Alert, Button, Card, PageHeader, SelectField, TextField } from '../components/ui';
 import { DEMO_EMAIL, DEMO_PASSWORD, sessionService, useDemoSession } from '../services';
-import { SOLO_LOCAL } from '../config/despliegue';
+import { BACKEND_PUBLICADO, SOLO_LOCAL } from '../config/despliegue';
 export function LoginPage() {
   const session = useDemoSession();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState('local');
+  const [mode, setMode] = useState(BACKEND_PUBLICADO && !SOLO_LOCAL ? 'backend' : 'local');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => { document.title = 'Inicio de sesión · Plataforma 5E'; }, []);
@@ -30,6 +30,7 @@ export function LoginPage() {
           {!SOLO_LOCAL && <SelectField label="Modo de acceso" value={mode} onChange={setMode} disabled={busy} options={[{ value: 'local', label: 'Prototipo local (datos en este navegador)' }, { value: 'backend', label: 'Servidor de la plataforma (backend)' }]} />}
           <TextField label="Correo electrónico" type="email" autoComplete="username" value={email} onChange={(v) => { setEmail(v); setError(''); }} />
           <TextField label="Contraseña" type="password" autoComplete="current-password" value={password} onChange={(v) => { setPassword(v); setError(''); }} />
+          {mode === 'backend' && BACKEND_PUBLICADO && <p className="caption">El servidor gratuito se apaga tras 15 minutos sin uso: la primera vez puede tardar hasta un minuto en responder.</p>}
           {error && <Alert tone="warn" title="No se pudo iniciar sesión" role="alert">{error}</Alert>}
           <Button type="submit" variant="primary" loading={busy} disabled={busy}>Iniciar sesión</Button>
         </form>

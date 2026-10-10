@@ -1,7 +1,8 @@
 /**
- * HU-053 / EN-006: generación local o mediante HTTP con la API de demostración.
- * Ambos modos utilizan ejemplos ficticios; no ejecutan RAG real.
- * En modo API, la respuesta y sus fragmentos se validan antes de incorporarlos al store.
+ * HU-053, EN-006 y HU-018: generación local (ejemplos preparados) o por HTTP.
+ * En el servidor, si la unidad tiene material procesado, el backend recupera sus fragmentos y
+ * redacta con IA o con reglas citándolos (RAG); si no, devuelve ejemplos de demostración.
+ * La respuesta y sus fragmentos se validan antes de incorporarlos al store.
  * Los recursos siempre quedan pendientes de revisión docente.
  */
 import { EXAMPLES } from '../data/demoContent';
@@ -15,7 +16,7 @@ import { SOLO_LOCAL } from '../config/despliegue';
 export type GenerationPhase = 'recuperacion' | 'generacion' | 'verificacion' | 'solicitud_api';
 
 export const PHASE_LABELS: Record<GenerationPhase, string> = {
-  solicitud_api: 'Solicitando ejemplos a la API',
+  solicitud_api: 'Generando en el servidor (con IA puede tardar hasta un minuto)',
   recuperacion: 'Recuperando evidencia del material',
   generacion: 'Redactando propuestas',
   verificacion: 'Verificando anclaje a la evidencia',
@@ -60,7 +61,7 @@ export const generationService = {
           apiDocuments: [...data.documents, ...(s.apiDocuments ?? []).filter((d) => !data.documents.some((n) => n.id === d.id))],
           ui: { ...s.ui, selectedResourceId: received[0].id, reviewFilters: { unitId: input.unitId, stage: input.stage, status: 'pendiente' } },
         }));
-        return { kind: 'ok', created: received, skipped: 0, available: data.available };
+        return { kind: 'ok', created: received, skipped: 0, available: data.available, notice: data.mode === 'rag' ? data.notice : undefined };
       } catch (error) {
         return { kind: 'error', code: error instanceof GenerationApiError ? error.code : 'ERROR_GENERACION', message: error instanceof Error ? error.message : 'No se pudo completar la solicitud.' };
       }

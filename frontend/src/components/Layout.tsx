@@ -149,7 +149,7 @@ export function Layout() {
           <div className="demo-banner" role="note">
             <Icon name="info" size={16} />
             <span>
-              {connected ? 'Conectado al servidor: sesión, cursos, archivos e historial se guardan en la base de datos. La generación usa ejemplos preparados; las decisiones de revisión se guardan en este navegador.' : 'Prototipo local: la generación usa ejemplos preparados y tus decisiones se guardan en este navegador.'}
+              {connected ? 'Conectado al servidor: sesión, cursos, archivos e historial se guardan en la base de datos. La generación usa tu material procesado; las decisiones de revisión se guardan en este navegador.' : 'Prototipo local: la generación usa ejemplos preparados y tus decisiones se guardan en este navegador.'}
             </span>
           </div>
           <main id="contenido" className="content" tabIndex={-1}>

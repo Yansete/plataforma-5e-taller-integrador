@@ -18,5 +18,7 @@ export { preferencesService } from './preferencesService';
 export { ServiceError } from './simulation';
 
 export { sessionService, useDemoSession, DEMO_EMAIL, DEMO_PASSWORD } from './sessionService';
-export { courseService } from './courseService';
-export type { CourseInput } from './courseService';
+export { courseService, outcomeLines, parseOutcomeLines } from './courseService';
+export type { CourseInput, OutcomeInput, UnitInput } from './courseService';
+export { buildSequenceHtml } from './sequenceDocument';
+export type { SequenceContext } from './sequenceDocument';
