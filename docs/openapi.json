@@ -5,6 +5,89 @@
     "version": "1.0.0"
   },
   "paths": {
+    "/api/v1/generaciones": {
+      "post": {
+        "tags": [
+          "HU-053 Generación integrada (demo)"
+        ],
+        "summary": "Generar",
+        "operationId": "generar_api_v1_generaciones_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudIntegrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneracionRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/generaciones/{generacion_id}": {
+      "get": {
+        "tags": [
+          "HU-053 Generación integrada (demo)"
+        ],
+        "summary": "Obtener",
+        "operationId": "obtener_api_v1_generaciones__generacion_id__get",
+        "parameters": [
+          {
+            "name": "generacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Generacion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneracionRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/salud": {
       "get": {
         "summary": "Salud",
@@ -265,6 +348,63 @@
         ],
         "title": "ExportacionRequest"
       },
+      "GeneracionRespuesta": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "const": "api_demo",
+            "title": "Mode"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Request"
+          },
+          "resources": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Resources"
+          },
+          "available": {
+            "type": "integer",
+            "title": "Available"
+          },
+          "fragments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fragments"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Documents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "notice",
+          "request",
+          "resources",
+          "available",
+          "fragments",
+          "documents"
+        ],
+        "title": "GeneracionRespuesta"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -277,6 +417,135 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "SolicitudIntegrada": {
+        "properties": {
+          "unidad_id": {
+            "type": "string",
+            "title": "Unidad Id",
+            "description": "Identificador de la unidad académica curricular (ej. u2)."
+          },
+          "resultado_aprendizaje_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultado Aprendizaje Id",
+            "description": "Código del resultado de aprendizaje específico a cubrir (ej. ra-2-1)."
+          },
+          "etapa_5e": {
+            "type": "string",
+            "enum": [
+              "engage",
+              "explore",
+              "explain",
+              "elaborate",
+              "evaluate"
+            ],
+            "title": "Etapa 5E",
+            "description": "Etapa instruccional del modelo pedagógico 5E solicitada."
+          },
+          "tipo_recurso": {
+            "type": "string",
+            "title": "Tipo Recurso",
+            "description": "Subtipo de recurso didáctico a producir (ej. item_opcion_multiple, pregunta_detonante)."
+          },
+          "cantidad": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Cantidad",
+            "description": "Número de variantes o instancias de recursos a generar.",
+            "default": 1
+          },
+          "dificultad": {
+            "type": "string",
+            "enum": [
+              "basica",
+              "intermedia",
+              "avanzada"
+            ],
+            "title": "Dificultad",
+            "description": "Nivel de complejidad cognitiva estimada para el recurso.",
+            "default": "intermedia"
+          },
+          "alternativas": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 3.0,
+            "title": "Alternativas",
+            "description": "Cantidad de opciones de respuesta a generar en recursos de evaluación.",
+            "default": 4
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "description": "Cantidad máxima de fragmentos contextuales a recuperar de la base vectorial.",
+            "default": 10
+          },
+          "umbral_evidencia": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Umbral Evidencia",
+            "description": "Umbral mínimo de similitud semántica requerido para admitir un fragmento.",
+            "default": 0.6
+          },
+          "indicaciones": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indicaciones",
+            "description": "Instrucciones docentes complementarias para guiar el enfoque pedagógico.",
+            "default": ""
+          },
+          "publico_objetivo": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Publico Objetivo",
+            "default": ""
+          },
+          "competencia": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Competencia",
+            "default": ""
+          },
+          "modalidades": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "Textual",
+                "Gamificado",
+                "Multimedia",
+                "Kinestésico"
+              ]
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Modalidades"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "unidad_id",
+          "etapa_5e",
+          "tipo_recurso"
+        ],
+        "title": "SolicitudIntegrada"
       },
       "ValidationError": {
         "properties": {
@@ -301,6 +570,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",

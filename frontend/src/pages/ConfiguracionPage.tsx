@@ -38,6 +38,7 @@ const DEFAULTS: ConfigForm = {
 const PENDING_HINT = 'Se registra en la solicitud; su efecto requiere el motor RAG (pendiente).';
 
 export function ConfiguracionPage() {
+  const mode = useAppState((s) => s.ui.generationMode ?? 'local');
   const saved = useAppState((s) => s.ui.config);
   const documents = useAppState((s) => s.documents);
   const resources = useAppState((s) => s.resources);
@@ -76,9 +77,8 @@ export function ConfiguracionPage() {
 
   const generate = async () => {
     setResult(null);
-    const outcome = await generationService.generate(form, setPhase);
-    setPhase(null);
-    setResult(outcome);
+    try { setResult(await generationService.generate(form, setPhase)); }
+    finally { setPhase(null); }
   };
 
   const busy = phase !== null;
@@ -95,6 +95,12 @@ export function ConfiguracionPage() {
       <div className="split">
         <Card>
           <CardHeader title="Solicitud de generación" />
+          <SelectField label="Origen de las propuestas" value={mode}
+            onChange={(v) => { setResult(null); preferencesService.update('generationMode', v as 'local' | 'api_demo'); }}
+            options={[{ value: 'local', label: 'Demostración local' }, { value: 'api_demo', label: 'API de demostración' }]} disabled={busy}
+            hint="La API usa ejemplos preparados y guarda las solicitudes en el servidor. La generación RAG sigue pendiente." />
+          {mode === 'api_demo' && <Alert title="Integración con API activa">Las propuestas se reciben del backend. Su contenido y evidencia son ficticios de demostración; las decisiones de revisión se guardan en este navegador.</Alert>}
+
           <form
             className="stack"
             onSubmit={(e) => {
@@ -229,7 +235,7 @@ export function ConfiguracionPage() {
 
             <div className="cluster">
               <Button type="submit" variant="primary" icon="layers" loading={busy} disabled={busy}>
-                Generar propuestas (simulado)
+                {mode === 'api_demo' ? 'Solicitar propuestas a la API' : 'Generar propuestas (simulado)'}
               </Button>
               {busy && phase && <Spinner label={`${PHASE_LABELS[phase]}…`} />}
             </div>
@@ -240,6 +246,7 @@ export function ConfiguracionPage() {
               <Alert tone="success" title={`${result.created.length} recurso(s) enviados a revisión`} role="status">
                 <p>
                   Quedan en estado «En revisión». Ninguno se aprueba sin tu decisión.
+                  {result.created.length < form.quantity && ` Solo hay ${result.created.length} ejemplo(s) nuevos disponibles de los ${form.quantity} solicitados.`}
                   {result.skipped > 0 && ` ${result.skipped} ejemplo(s) ya estaban en la cola y no se duplicaron.`}
                 </p>
                 <div style={{ marginTop: 'var(--space-3)' }}>
@@ -253,6 +260,11 @@ export function ConfiguracionPage() {
               <Alert tone="info" title="No se añadieron recursos nuevos" role="status">
                 Los {result.available} ejemplo(s) preparados para esta combinación ya están en la cola de revisión. Prueba otra etapa, tipo o
                 resultado de aprendizaje.
+              </Alert>
+            )}
+            {result?.kind === 'error' && (
+              <Alert tone="warn" title={`Solicitud fallida (${result.code})`} role="alert">
+                {result.message} No se añadieron propuestas. Puedes volver a solicitar cuando se resuelva el problema.
               </Alert>
             )}
             {result?.kind === 'rechazado' && (

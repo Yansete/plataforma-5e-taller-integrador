@@ -28,11 +28,11 @@ export const catalogService = {
   },
   getFragments(ids: string[]): Fragment[] {
     return ids
-      .map((id) => DEMO_FRAGMENTS.find((f) => f.id === id))
+      .map((id) => [...(getState().apiFragments ?? []), ...DEMO_FRAGMENTS].find((f) => f.id === id))
       .filter((f): f is Fragment => Boolean(f));
   },
   documentName(documentId: string): string {
-    return getState().documents.find((d) => d.id === documentId)?.fileName ?? documentId;
+    return [...getState().documents, ...(getState().apiDocuments ?? [])].find((d) => d.id === documentId)?.fileName ?? documentId;
   },
   countFragmentsForUnit(unitId: string): number {
     return DEMO_FRAGMENTS.filter((f) => f.unitId === unitId).length;

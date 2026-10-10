@@ -121,6 +121,8 @@ export interface ItemOption {
 export type ReviewStatus = 'pendiente' | 'aprobado' | 'descartado';
 
 export interface Resource {
+  /** HU-053: origen explícito de las propuestas recibidas por HTTP. */
+  source?: "api_demo";
   id: string;
   /** Identificador del ejemplo preparado del que proviene (evita duplicados). */
   exampleId: string;
@@ -188,6 +190,7 @@ export interface GenerationRequest {
 
 export type GenerationOutcome =
   | { kind: 'ok'; created: Resource[]; skipped: number; available: number }
+  | { kind: 'error'; code: string; message: string }
   | { kind: 'rechazado'; code: 'EVIDENCIA_INSUFICIENTE' | 'SIN_MATERIAL_PROCESADO'; message: string };
 
 export type ExportFormat = 'qti30' | 'scorm' | 'common_cartridge' | 'moodle_xml' | 'gift';
@@ -207,6 +210,7 @@ export interface ExportJob {
 
 /** Selecciones que se conservan entre pantallas y recargas. */
 export interface UiPreferences {
+  generationMode?: "local" | "api_demo";
   config: Partial<Omit<GenerationRequest, 'id' | 'createdAt'>>;
   reviewFilters: { unitId: string; stage: Stage5E | 'todas'; status: ReviewStatus | 'todos' };
   selectedResourceId: string | null;
@@ -220,6 +224,8 @@ export interface UiPreferences {
 export type DashboardPeriod = 'todo' | '7dias' | 'hoy';
 
 export interface AppState {
+  apiFragments?: Fragment[];
+  apiDocuments?: MaterialDocument[];
   version: number;
   courses: Course[];
   units: Unit[];

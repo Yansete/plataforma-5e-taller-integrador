@@ -1,0 +1,28 @@
+"""Persiste solicitudes y propuestas sin alterar las tablas de la demo anterior."""
+import json
+from pathlib import Path
+from sqlalchemy import Column, JSON, String
+from plataforma5e.adapters.outbound.persistence.db import Base, engine, SessionLocal
+
+class GeneracionORM(Base):
+    __tablename__ = 'generaciones_demo'
+    id = Column(String, primary_key=True)
+    resultado = Column(JSON, nullable=False)
+
+class SQLAlchemyGeneracionRepository:
+    def __init__(self):
+        GeneracionORM.__table__.create(bind=engine, checkfirst=True)
+
+    def catalogo_demo(self) -> dict:
+        path = Path(__file__).resolve().parents[1] / 'fixtures' / 'generacion_demo.json'
+        return json.loads(path.read_text(encoding='utf-8'))
+
+    def guardar(self, resultado: dict) -> None:
+        with SessionLocal() as session:
+            session.add(GeneracionORM(id=resultado['request']['id'], resultado=resultado))
+            session.commit()
+
+    def obtener(self, generacion_id: str) -> dict | None:
+        with SessionLocal() as session:
+            entity = session.get(GeneracionORM, generacion_id)
+            return entity.resultado if entity else None

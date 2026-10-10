@@ -1,7 +1,8 @@
-# Integración futura con el backend
+# Integración con el backend
 
-Todo lo de este documento es una **propuesta** del frontend. Los contratos oficiales deben salir de EN-003
-(contratos JSON), EN-002 (modelo de datos) y EN-001 (arquitectura), que aún no existen.
+**HU-053 / EN-006:** Configuración incorpora un modo API de demostración. `generationApiService` envía `POST /api/v1/generaciones`, valida la respuesta y conserva propuestas pendientes y fragmentos en el store. La API guarda cada solicitud en `generaciones_demo` con SQLAlchemy; `GET /api/v1/generaciones/{id}` permite recuperarla. La prueba técnica usa SQLite aislado; PostgreSQL no se verificó en esta entrega. El contenido es ficticio y no proviene de RAG real.
+
+Los campos de entrada se basan en `app/contracts/solicitud.py` y agregan público, competencia y modalidades. OpenAPI se publica en `/docs` del backend y en `docs/openapi.json`. Las decisiones y exportaciones de la interfaz continúan locales; la ingesta de PDFs, RAG y autenticación real siguen pendientes. Las tablas siguientes describen los puntos pendientes de integración salvo el modo API de generación implementado.
 
 ## 1. Cómo está organizado hoy
 
@@ -11,7 +12,7 @@ pages/  ──lee──▶  store (useAppState)          ◀──escribe── 
 ```
 
 - `store/store.ts`: caché del cliente + persistencia en `localStorage`.
-- `services/*.ts`: única vía para leer datos del catálogo y modificar el estado. Hoy simulan; mañana llamarán a la API.
+- `services/*.ts`: única vía para leer datos del catálogo y modificar el estado. Generación puede usar la API; los demás servicios siguen locales.
 - `services/index.ts`: punto único de importación para las pantallas.
 
 **Para conectar el backend**, se reemplaza el cuerpo de cada servicio por llamadas HTTP y, con la respuesta, se

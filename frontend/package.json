@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:cobertura": "vitest run --coverage"
+    "test:cobertura": "vitest run --coverage",
+    "test:api:e2e": "playwright test --config playwright.api.config.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

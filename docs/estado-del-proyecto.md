@@ -4,8 +4,8 @@
 
 ## Resumen
 
-Existe un frontend navegable con seis pantallas conectadas, datos de demostración y una capa de servicios simulados.
-**Existe un backend base FastAPI con arquitectura hexagonal y adaptador SQLAlchemy**, aún sin conectar a estos servicios del frontend. La generación sigue simulada; no hay RAG real.
+Existe un frontend navegable con sesión y cursos (HU-045), solicitud por chat (HU-046), datos de demostración y servicios locales.
+**Existe un backend base FastAPI con arquitectura hexagonal y adaptador SQLAlchemy**, conectado a Configuración mediante HU-053 / EN-006 en modo API de demostración. Guarda solicitudes y devuelve propuestas y fragmentos ficticios; no hay RAG real. Las decisiones docentes y la exportación siguen locales. La persistencia de esta entrega se probó con SQLite aislado, no con PostgreSQL.
 
 ## Implementado (funciona localmente en el navegador)
 

@@ -1,21 +1,20 @@
 /**
- * Generación de recursos (HU-005 a HU-009, HU-011 a HU-014).
- *
- * SIMULADA: no hay recuperación ni modelo de lenguaje. Se entregan EJEMPLOS PREPARADOS
- * que coinciden con la unidad, la etapa, el tipo de recurso y el resultado de aprendizaje.
- * Todo recurso entra a la cola de revisión en estado «pendiente».
- *
- * Futuro: POST /generaciones con el contrato de EN-003; respuesta con recursos o código de rechazo.
+ * HU-053 / EN-006: generación local o mediante HTTP con la API de demostración.
+ * Ambos modos utilizan ejemplos ficticios; no ejecutan RAG real.
+ * En modo API, la respuesta y sus fragmentos se validan antes de incorporarlos al store.
+ * Los recursos siempre quedan pendientes de revisión docente.
  */
 import { EXAMPLES } from '../data/demoContent';
 import { getState, setState } from '../store/store';
 import { instantiateExample, newId } from '../store/initialState';
 import type { GenerationOutcome, GenerationRequest, ResourceType, Stage5E } from '../types';
+import { GenerationApiError, requestGeneration } from './generationApiService';
 import { wait } from './simulation';
 
-export type GenerationPhase = 'recuperacion' | 'generacion' | 'verificacion';
+export type GenerationPhase = 'recuperacion' | 'generacion' | 'verificacion' | 'solicitud_api';
 
 export const PHASE_LABELS: Record<GenerationPhase, string> = {
+  solicitud_api: 'Solicitando ejemplos a la API',
   recuperacion: 'Recuperando evidencia del material',
   generacion: 'Redactando propuestas',
   verificacion: 'Verificando anclaje a la evidencia',
@@ -37,6 +36,22 @@ export const generationService = {
     input: Omit<GenerationRequest, 'id' | 'createdAt'>,
     onPhase?: (phase: GenerationPhase) => void,
   ): Promise<GenerationOutcome> {
+    if (getState().ui.generationMode === 'api_demo') {
+      onPhase?.('solicitud_api');
+      try {
+        const data = await requestGeneration(input);
+        // Se valida la respuesta completa antes de modificar el estado.
+        setState((s) => ({ ...s,
+          requests: [data.request, ...s.requests], resources: [...data.resources, ...s.resources],
+          apiFragments: [...data.fragments, ...(s.apiFragments ?? []).filter((f) => !data.fragments.some((n) => n.id === f.id))],
+          apiDocuments: [...data.documents, ...(s.apiDocuments ?? []).filter((d) => !data.documents.some((n) => n.id === d.id))],
+          ui: { ...s.ui, selectedResourceId: data.resources[0].id, reviewFilters: { unitId: input.unitId, stage: input.stage, status: 'pendiente' } },
+        }));
+        return { kind: 'ok', created: data.resources, skipped: 0, available: data.available };
+      } catch (error) {
+        return { kind: 'error', code: error instanceof GenerationApiError ? error.code : 'ERROR_GENERACION', message: error instanceof Error ? error.message : 'No se pudo completar la solicitud.' };
+      }
+    }
     const request: GenerationRequest = { ...input, id: newId('sol'), createdAt: new Date().toISOString() };
 
     onPhase?.('recuperacion');

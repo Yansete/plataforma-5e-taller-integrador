@@ -3,12 +3,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 from fastapi import FastAPI, Response
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 
 from plataforma5e.adapters.outbound.persistence.sqlalchemy_recurso_repository import SQLAlchemyRecursoRepository
 from plataforma5e.application.services.recurso_service import RecursoService
-from plataforma5e.adapters.inbound.error_handlers import value_error_handler
+from plataforma5e.adapters.inbound.error_handlers import value_error_handler, request_validation_error_handler
 from plataforma5e.domain.models import RecursoDominio
+from plataforma5e.adapters.inbound.generaciones import crear_router_generaciones
+from plataforma5e.application.services.generacion_service import GeneracionService
+from plataforma5e.adapters.outbound.persistence.sqlalchemy_generacion_repository import SQLAlchemyGeneracionRepository
 
 
 class DecisionRequest(BaseModel):
@@ -62,8 +66,11 @@ def crear_aplicacion() -> FastAPI:
     repositorio = SQLAlchemyRecursoRepository()
     servicio = RecursoService(repositorio)
 
+    app.include_router(crear_router_generaciones(GeneracionService(SQLAlchemyGeneracionRepository())))
+
     # Manejo único de errores (C02 de EN-006)
     app.add_exception_handler(ValueError, value_error_handler)
+    app.add_exception_handler(RequestValidationError, request_validation_error_handler)
 
     @app.get("/salud")
     def salud():

@@ -382,6 +382,8 @@ function ResourceDetail({ resource, position, onPrev, onNext, onMessage }: Detai
       </Card>
 
       <Card as="aside" aria-labelledby="evidencia-titulo">
+      {resource.source === 'api_demo' && <Alert title="Propuesta recibida de la API de demostración">El recurso y sus fragmentos son ejemplos ficticios enviados por HTTP. Tu revisión se guarda localmente; la sincronización de decisiones con la API sigue pendiente.</Alert>}
+
         <CardHeader
           id="evidencia-titulo"
           title="Evidencia de origen"
