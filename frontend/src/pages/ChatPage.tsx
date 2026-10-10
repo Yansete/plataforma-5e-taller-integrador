@@ -36,7 +36,7 @@ export function ChatPage() {
     catch (e) { setError(e instanceof Error ? e.message : 'Revisa la solicitud.'); }
   };
   return <>
-    <PageHeader overline="HU-046 / EN-005 · Solicitud del docente" title="Solicitud por chat" description="Describe lo que necesitas y revisa la interpretación antes de continuar a la secuencia 5E." />
+    <PageHeader overline="Paso 2 · Solicitud por chat" title="Solicitud por chat" description="Describe lo que necesitas y revisa la interpretación antes de continuar a la secuencia 5E." />
     <Alert title="Interpretación local de demostración">
       Este prototipo reconoce expresiones y campos por reglas. Todavía no usa un modelo de IA ni RAG. Los datos no reconocidos se completan en el resumen.
     </Alert>

@@ -56,7 +56,7 @@ export const PENDING_REASONS: Record<string, string> = {
   I13: 'Requiere un monitor de disponibilidad del servicio desplegado.',
   I14: 'Requiere el escaneo OWASP ZAP y el backend con control por rol.',
   I15: 'Se mide en el tablero Scrum, fuera de esta aplicación.',
-  I16: 'Requiere el exportador real y el validador QTI de 1EdTech. La exportación de esta demo no genera paquetes.',
+  I16: 'La exportación ya genera Moodle XML y QTI 2.1, y el Moodle XML pasa el validador del backend. Falta medir la importación en instancias reales de Moodle y Chamilo (TA-006).',
   I17: 'Requiere pruebas de importación en los LMS objetivo (SP-001, TA-002).',
   I18: 'Requiere la matriz de compatibilidad con LMS instalados (SP-001).',
   I19: 'Requiere importar paquetes reales y comparar antes y después.',

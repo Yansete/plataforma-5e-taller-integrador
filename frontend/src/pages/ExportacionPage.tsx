@@ -61,7 +61,7 @@ export function ExportacionPage() {
       const job = await exportService.runExport({ format, resourceIds: selection, targetLms }, setRunning);
       setLastJob(job);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo completar la exportación simulada.');
+      setError(err instanceof Error ? err.message : 'No se pudo completar la exportación.');
     } finally {
       setRunning(null);
     }
@@ -235,7 +235,7 @@ export function ExportacionPage() {
                     <td data-label="Estado">
                       <Tag tone="review" icon="pending">Generado · importación por verificar</Tag>
                     </td>
-                    <td data-label="Resumen">
+                    <td data-label="Archivo">
                       <DownloadFile job={job} compact onError={setError} />
                     </td>
                   </tr>
@@ -290,7 +290,8 @@ function DownloadFile({ job, compact, onError }: { job: ExportJob; compact?: boo
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      // Se libera después: revocarlo de inmediato puede cancelar la descarga en Firefox o Safari.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'No se pudo generar el archivo.');
     }

@@ -22,11 +22,11 @@ export function LoginPage() {
   return <>
     <a className="skip-link" href="#contenido">Saltar al contenido</a>
     <main id="contenido" className="login-shell" tabIndex={-1}>
-      <PageHeader overline="Plataforma 5E · HU-045" title="Inicio de sesión" description="Accede al prototipo docente para organizar tus cursos y preparar el recorrido 5E." />
+      <PageHeader overline="Plataforma 5E" title="Inicio de sesión" description="Accede al prototipo docente para organizar tus cursos y preparar el recorrido 5E." />
       <Card className="stack">
         <Alert title="Sesión de demostración">{mode === 'backend' ? 'Cuenta de demostración verificada por el servidor. Cursos, archivos e historial se guardan en la base de datos.' : 'Sesión local simulada.'} Usa correo {DEMO_EMAIL} y contraseña {DEMO_PASSWORD}. No ingreses credenciales personales.</Alert>
         <form className="stack" onSubmit={submit} noValidate>
-          <SelectField label="Modo de acceso" value={mode} onChange={setMode} disabled={busy} options={[{ value: 'local', label: 'Prototipo local (HU-045)' }, { value: 'backend', label: 'Backend conectado (EP-002)' }]} />
+          <SelectField label="Modo de acceso" value={mode} onChange={setMode} disabled={busy} options={[{ value: 'local', label: 'Prototipo local (datos en este navegador)' }, { value: 'backend', label: 'Servidor de la plataforma (backend)' }]} />
           <TextField label="Correo electrónico" type="email" autoComplete="username" value={email} onChange={(v) => { setEmail(v); setError(''); }} />
           <TextField label="Contraseña" type="password" autoComplete="current-password" value={password} onChange={(v) => { setPassword(v); setError(''); }} />
           {error && <Alert tone="warn" title="No se pudo iniciar sesión" role="alert">{error}</Alert>}
