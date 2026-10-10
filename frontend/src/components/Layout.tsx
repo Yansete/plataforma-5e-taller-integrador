@@ -1,57 +1,40 @@
+/**
+ * Marco de las pantallas con sesión: menú lateral (cursos y unidades), barra para celular y contenido.
+ */
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { catalogService, preferencesService, sessionService, useDemoSession } from '../services';
-import { Icon, type IconName } from './Icon';
-import { useAppState } from '../store/store';
-import { refreshBackendCatalog } from '../services/configurationApiService';
-import { Alert, Button, ConfirmDialog } from './ui';
+import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { logout } from '../services/sesion';
+import { useData, useSession } from '../state/datos';
 import { ErrorBoundary } from './ErrorBoundary';
-
-export const ROUTES: { to: string; label: string; icon: IconName; step?: number; title: string }[] = [
-  { to: '/', label: 'Inicio', icon: 'home', title: 'Inicio del docente' },
-  { to: '/cursos', label: 'Cursos y unidades', icon: 'book', title: 'Cursos y unidades' },
-  { to: '/carga', label: 'Carga de material', icon: 'upload', step: 1, title: 'Carga de material' },
-  { to: '/chat', label: 'Solicitud por chat', icon: 'quote', step: 2, title: 'Solicitud por chat' },
-  { to: '/configuracion', label: 'Configuración', icon: 'sliders', step: 2, title: 'Configuración de la generación' },
-  { to: '/secuencia', label: 'Secuencia 5E', icon: 'layers', step: 3, title: 'Secuencia 5E' },
-  { to: '/revision', label: 'Revisión docente', icon: 'review', step: 4, title: 'Revisión docente' },
-  { to: '/exportacion', label: 'Exportación', icon: 'export', step: 5, title: 'Exportación' },
-  { to: '/indicadores', label: 'Indicadores', icon: 'chart', title: 'Tablero de indicadores' },
-];
+import { Icon } from './Icon';
 
 export function Layout() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const connected = sessionService.isBackend();
-  const [ready, setReady] = useState(!connected);
-  const [apiError, setApiError] = useState('');
-  const [logoutError, setLogoutError] = useState('');
-  const loadCatalog = () => { setReady(false); setApiError(''); void refreshBackendCatalog().then(() => setReady(true)).catch((e) => setApiError(e.message)); };
-  useEffect(() => { if (connected) loadCatalog(); }, [connected]);
+  const session = useSession();
+  const { courses } = useData();
   const location = useLocation();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  useAppState((s) => s.courses);
-  const session = useDemoSession();
-  const course = catalogService.getCourse();
-
   const firstRender = useRef(true);
 
-  // Al cambiar de pantalla: cerrar el menú, actualizar el título y llevar el foco al encabezado.
-  // En la carga inicial no se mueve el foco, para que el primer Tab llegue a «Saltar al contenido».
+  // Las pestañas de una unidad son la misma pantalla: cambiar de pestaña no la reinicia.
+  const pageKey = location.pathname.replace(/\/(material|generacion|revision|exportacion)\/?$/, '');
+  const match = useMatch('/cursos/:courseId/*');
+  const courseId = match?.params.courseId;
+  const course = courseId && courseId !== 'nuevo' ? courses?.find((c) => c.id === courseId) : undefined;
+
+  // Al cambiar de pantalla, el foco va al título (salvo en la carga inicial).
   useEffect(() => {
-    setMenuOpen(false);
-    const route = ROUTES.find((r) => r.to === location.pathname);
-    document.title = `${route?.title ?? 'Página no encontrada'} · Plataforma 5E`;
     if (firstRender.current) {
       firstRender.current = false;
       return;
     }
-    const heading = document.querySelector<HTMLElement>('[data-page-title]');
-    heading?.focus({ preventScroll: true });
+    document.querySelector<HTMLElement>('[data-page-title]')?.focus({ preventScroll: true });
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+  }, [pageKey]);
+
+  useEffect(() => setMenuOpen(false), [location.pathname]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -66,10 +49,9 @@ export function Layout() {
     return () => document.removeEventListener('keydown', onKey);
   }, [menuOpen]);
 
-  const handleReset = () => {
-    preferencesService.resetDemo();
-    setConfirmReset(false);
-    navigate('/');
+  const signOut = async () => {
+    await logout();
+    navigate('/entrar', { replace: true });
   };
 
   return (
@@ -79,15 +61,10 @@ export function Layout() {
       </a>
       <div className="app">
         <div className="mobile-bar">
-          <span className="mobile-bar__title">Plataforma 5E</span>
-          <button
-            ref={menuButtonRef}
-            type="button"
-            className="mobile-bar__menu"
-            aria-expanded={menuOpen}
-            aria-controls="navegacion"
-            onClick={() => setMenuOpen(true)}
-          >
+          <Link to="/" className="mobile-bar__title">
+            Plataforma Docente
+          </Link>
+          <button ref={menuButtonRef} type="button" className="mobile-bar__menu" aria-expanded={menuOpen} aria-controls="navegacion" onClick={() => setMenuOpen(true)}>
             <Icon name="menu" />
             Menú
           </button>
@@ -108,70 +85,64 @@ export function Layout() {
           >
             <Icon name="x" />
           </button>
-          <div className="sidebar__brand">
-            <span className="sidebar__brand-name">Plataforma 5E</span>
-            <span className="sidebar__brand-sub">
-              {course.code} · {course.name}
-            </span>
-          </div>
+          <Link to="/" className="sidebar__brand">
+            Plataforma Docente
+          </Link>
 
-          <div>
-            <p className="sidebar__section-label">Recorrido</p>
-            <ul className="nav-list">
-              {ROUTES.map((r) => (
-                <li key={r.to}>
-                  <NavLink to={r.to} end className="nav-link">
-                    <Icon name={r.icon} />
-                    <span>{r.label}</span>
-                    {r.step && (
-                      <span className="nav-link__step">
-                        <span className="visually-hidden">paso </span>
-                        {r.step}
+          <ul className="nav-list">
+            <li>
+              <NavLink to="/" end className="nav-link">
+                <Icon name="book" />
+                <span>Mis cursos</span>
+              </NavLink>
+            </li>
+          </ul>
+
+          {course && (
+            <div className="nav-group">
+              <p className="sidebar__section-label">Curso</p>
+              <NavLink to={`/cursos/${course.id}`} end className="nav-link nav-link--strong">
+                <span>
+                  {course.code} · {course.name}
+                </span>
+              </NavLink>
+              {course.units.length > 0 && <p className="sidebar__section-label">Unidades</p>}
+              <ul className="nav-list">
+                {course.units.map((u) => (
+                  <li key={u.id}>
+                    <NavLink to={`/cursos/${course.id}/unidades/${u.id}`} className="nav-link">
+                      <span>
+                        {u.number} · {u.title}
                       </span>
-                    )}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </div>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="sidebar__footer">
-            <span>{session} ({connected ? 'backend conectado' : 'demostración local'})</span>
-            <button type="button" className="sidebar__reset" onClick={() => { setLogoutError(''); void sessionService.logout().then(() => navigate('/login', { replace: true })).catch((e) => setLogoutError(e.message)); }}>Cerrar sesión</button>
-            <button type="button" className="sidebar__reset" onClick={() => setConfirmReset(true)} disabled={connected}>
-              <Icon name="reset" />
-              Restablecer demo
+            {session && (
+              <span className="sidebar__user">
+                <strong>{session.name}</strong>
+                <span>{session.email}</span>
+              </span>
+            )}
+            <button type="button" className="sidebar__logout" onClick={() => void signOut()}>
+              <Icon name="logout" />
+              Cerrar sesión
             </button>
           </div>
         </nav>
 
-        <div className="main">
-          <div className="demo-banner" role="note">
-            <Icon name="info" size={16} />
-            <span>
-              {connected ? 'Conectado al servidor: sesión, cursos, archivos e historial se guardan en la base de datos. La generación usa tu material procesado; las decisiones de revisión se guardan en este navegador.' : 'Prototipo local: la generación usa ejemplos preparados y tus decisiones se guardan en este navegador.'}
-            </span>
+        <main className="main" id="contenido" tabIndex={-1}>
+          <div className="content">
+            <ErrorBoundary key={pageKey}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
-          <main id="contenido" className="content" tabIndex={-1}>
-            {logoutError && <Alert tone="warn" role="alert">{logoutError}</Alert>}
-            {connected && !ready ? <div className="stack">{apiError ? <><Alert tone="warn" role="alert">{apiError}</Alert><Button onClick={loadCatalog}>Reintentar conexión</Button></> : <p role="status">Cargando cursos, archivos e historial del servidor…</p>}</div> : <ErrorBoundary key={location.pathname}><Outlet /></ErrorBoundary>}
-          </main>
-        </div>
+        </main>
       </div>
-
-      <ConfirmDialog
-        open={confirmReset}
-        title="¿Restablecer la demostración?"
-        confirmLabel="Restablecer"
-        confirmVariant="danger"
-        onConfirm={handleReset}
-        onCancel={() => setConfirmReset(false)}
-      >
-        <p>
-          Se borrarán los cursos y unidades que creaste, los documentos que registraste, las generaciones, las decisiones de revisión y las exportaciones guardadas en
-          este navegador. Se volverán a cargar los datos de demostración iniciales.
-        </p>
-      </ConfirmDialog>
     </>
   );
 }

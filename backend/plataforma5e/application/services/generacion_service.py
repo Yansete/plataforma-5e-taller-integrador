@@ -4,6 +4,7 @@ Si la unidad del docente tiene material procesado, se recuperan sus fragmentos m
 relacionados con la solicitud y el generador (IA o reglas) redacta citándolos (RAG).
 Las unidades de demostración sin material propio siguen usando los ejemplos preparados.
 """
+import logging
 import random
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -13,13 +14,17 @@ from plataforma5e.application.ports.configuracion_repository import Configuracio
 from plataforma5e.application.ports.generacion_repository import GeneracionRepositoryPort
 from plataforma5e.application.ports.generador import GeneradorRecursosPort
 from plataforma5e.application.ports.material import MaterialRepositoryPort
+from plataforma5e.application.ports.revision import RevisionRepositoryPort
 from plataforma5e.application.services.redaccion import construir_contexto, normalizar_recursos
 from plataforma5e.domain.generacion import GeneracionError
 from plataforma5e.domain.recuperacion import recuperar
 
 LETRAS = 'abcdefghij'
 SIN_MATERIAL = ('Esta unidad todavía no tiene material procesado. Sube un documento o busca el tema '
-                'en «Carga de material» y vuelve a intentar.')
+                'en la pestaña Material y vuelve a intentar.')
+PARAMETROS = ('resourceType', 'stage', 'outcomeId', 'difficulty', 'optionCount', 'instructions', 'audience',
+              'competency', 'modalities', 'topK', 'evidenceThreshold')
+registro = logging.getLogger('plataforma5e.generacion')
 
 
 class GeneracionService:
@@ -27,8 +32,14 @@ class GeneracionService:
                  configuracion: ConfiguracionRepositoryPort | None = None,
                  material: MaterialRepositoryPort | None = None,
                  generador: GeneradorRecursosPort | None = None,
-                 respaldo: GeneradorRecursosPort | None = None):
+                 respaldo: GeneradorRecursosPort | None = None,
+                 revision: RevisionRepositoryPort | None = None,
+                 ejemplos_demo: bool = True):
+        """`ejemplos_demo`: sin material propio, responde con los ejemplos preparados del curso de prueba.
+        Solo lo usan las pruebas (CATALOGO_DEMO=true); el sistema publicado genera únicamente con material."""
         self._repo = repositorio
+        self._ejemplos_demo = ejemplos_demo
+        self._revision = revision
         self._config = configuracion
         self._material = material
         self._generador = generador
@@ -41,6 +52,8 @@ class GeneracionService:
                 fragmentos = self._material.fragmentos_de_unidad(docente, unidad['id'])
                 if fragmentos:
                     return self._generar_con_material(solicitud, docente, curso, unidad, fragmentos)
+        if not self._ejemplos_demo:
+            raise GeneracionError('SIN_MATERIAL_PROCESADO', SIN_MATERIAL)
         return self._generar_demo(solicitud, docente)
 
     # ------------------------------------------------------------------ material real (RAG)
@@ -78,10 +91,13 @@ class GeneracionService:
             usado = self._respaldo
             if aviso:
                 aviso += ' Se usó el generador por reglas.'
+        if aviso:
+            # Queda en los registros del servidor (Render, Logs) para saber por qué no respondió la IA.
+            registro.warning('Generación con respaldo: %s', aviso)
         if not recursos:
-            detalle = f' Detalle: {aviso}' if aviso else ''
+            # El motivo técnico (proveedor, código de error) queda en los registros; la pantalla da la salida.
             raise GeneracionError('EVIDENCIA_INSUFICIENTE', 'No se pudieron redactar recursos que citen el material. '
-                                  f'Prueba con otro tipo de recurso, más fragmentos o agrega material a la unidad.{detalle}')
+                                  'Prueba con otro tipo de recurso o agrega más material a la unidad.')
 
         ahora = datetime.now(timezone.utc).isoformat()
         request = {**solicitud, 'id': f'sol-api-{uuid4()}', 'createdAt': ahora}
@@ -91,11 +107,13 @@ class GeneracionService:
         citados |= {fid for r in salida for o in (r['options'] or []) for fid in o['sourceFragmentIds']}
         usados = [f for f in elegidos if f['id'] in citados]
         docs = [documentos[i] for i in dict.fromkeys(f['documento_id'] for f in usados) if i in documentos]
+        usa_ia = bool(getattr(usado, 'usa_ia', False))
+        self._guardar_para_revision(docente, unidad['id'], salida, usados, docs, request, usa_ia)
         aviso_final = f' {aviso}' if aviso else ''
         resultado = {
             'mode': 'rag',
             'notice': f'Generado con {usado.descripcion} a partir de {len(elegidos)} fragmento(s) de tu material.{aviso_final}',
-            'generator': {'descripcion': usado.descripcion, 'usaIA': bool(getattr(usado, 'usa_ia', False))},
+            'generator': {'descripcion': usado.descripcion, 'usaIA': usa_ia, 'fallback': aviso is not None},
             'request': request,
             'resources': salida,
             'available': len(salida),
@@ -105,6 +123,26 @@ class GeneracionService:
         }
         self._repo.guardar(resultado, docente)
         return resultado
+
+    def _guardar_para_revision(self, docente, unidad_id, salida, usados, docs, request, usa_ia) -> None:
+        """Cada recurso guarda su evidencia (copia de los fragmentos citados) y los parámetros con que se pidió:
+        así la revisión se ve igual aunque luego se borre el documento, y «Regenerar» repite el pedido."""
+        nombres = {d['id']: d.get('fileName', '') for d in docs}
+        origenes = {d['id']: d.get('origin') or {} for d in docs}
+        por_id = {f['id']: f for f in usados}
+        parametros = {k: request.get(k) for k in PARAMETROS}
+        for r in salida:
+            citados = [fid for c in r['citations'] for fid in c['fragmentIds']]
+            citados += [fid for o in (r['options'] or []) for fid in o['sourceFragmentIds']]
+            r['evidence'] = [{'id': fid, 'text': por_id[fid]['texto'], 'location': por_id[fid]['ubicacion'],
+                              'documentId': por_id[fid]['documento_id'], 'documentName': nombres.get(por_id[fid]['documento_id'], ''),
+                              'sourceUrl': origenes.get(por_id[fid]['documento_id'], {}).get('url'),
+                              'license': origenes.get(por_id[fid]['documento_id'], {}).get('licencia')}
+                             for fid in dict.fromkeys(citados) if fid in por_id]
+            r['params'] = parametros
+            r['generatorKind'] = 'ia' if usa_ia else 'respaldo'
+        if self._revision is not None:
+            self._revision.recursos_guardar(docente, unidad_id, salida)
 
     @staticmethod
     def _recurso(r: dict, request: dict, unidad_id: str, outcome: str, generador: str, ahora: str) -> dict:

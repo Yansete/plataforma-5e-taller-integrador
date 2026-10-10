@@ -109,6 +109,17 @@ def test_gemini_envia_instrucciones_y_lee_el_texto():
     assert cuerpo['generationConfig']['responseMimeType'] == 'application/json' and '[F1]' in cuerpo['contents'][0]['parts'][0]['text']
 
 
+def test_gemini_pide_salida_estructurada_y_sigue_sin_ella_si_el_modelo_la_rechaza():
+    texto = json.dumps(RESPUESTA)
+    cliente, pedidos = transporte([(400, {'error': {'message': 'Invalid JSON payload: response_schema'}}),
+                                   (200, {'candidates': [{'content': {'parts': [{'text': texto}]}}]})])
+    generador = GeneradorLLM('gemini', 'clave', cliente=cliente)
+    assert generador.generar(CONTEXTO) == RESPUESTA
+    primero, segundo = (json.loads(p.content)['generationConfig'] for p in pedidos)
+    assert primero['responseSchema']['required'] == ['recursos'] and 'responseSchema' not in segundo
+    assert generador.generar(CONTEXTO) == RESPUESTA and len(pedidos) == 3  # ya no vuelve a intentar con esquema
+
+
 def test_anthropic_y_openai_compatible():
     cliente, pedidos = transporte([(200, {'content': [{'type': 'text', 'text': json.dumps(RESPUESTA)}]})])
     generador = GeneradorLLM('anthropic', 'clave', cliente=cliente)

@@ -19,9 +19,10 @@ def _ahora() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def nombre_para_articulo(titulo: str, fuente: str) -> str:
+def nombre_para_articulo(titulo: str, fuente: str = '') -> str:
+    """Nombre del documento creado desde un tema. La fuente y su licencia quedan en `origin`."""
     limpio = re.sub(r'[\\/\x00-\x1f]', ' ', titulo).strip()[:140] or 'Artículo'
-    return f'{limpio} ({fuente}).txt'
+    return f'{limpio}.txt'
 
 
 class MaterialService:
@@ -98,8 +99,9 @@ class MaterialService:
             if nombre.casefold() in existentes:
                 resultado.append(existentes[nombre.casefold()])
                 continue
-            encabezado = f"{articulo['titulo']}\nFuente: {articulo['url']}\nLicencia: {articulo['licencia']}\n\n"
-            contenido = (encabezado + articulo['texto']).encode('utf-8')
+            # El enlace y la licencia van en `origin` (se muestran como «Ver fuente» y en el documento de la unidad),
+            # no en el texto: así los fragmentos solo contienen el contenido del artículo.
+            contenido = f"{articulo['titulo']}\n\n{articulo['texto']}".encode('utf-8')
             datos = {
                 'unitId': unidad['id'], 'outcomeIds': [], 'documentType': TIPO_FUENTE_ABIERTA, 'suggestedStage': None,
                 'usePermission': True, 'id': f'doc-api-{uuid4()}', 'fileName': nombre, 'kind': 'txt',

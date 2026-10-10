@@ -1,6 +1,7 @@
-"""EP-002: sesión de cuenta demo del servidor, catálogo y archivos. La extracción vive en material_service."""
+"""EP-002 y HU-001: cuentas de docente, sesiones, cursos y archivos. La extracción vive en material_service."""
 import hashlib
 import hmac
+import re
 import secrets
 import time
 from datetime import datetime, timezone
@@ -10,22 +11,69 @@ from plataforma5e.domain.configuracion import ConfiguracionError
 
 MAX_ARCHIVO = 25 * 1024 * 1024
 TIPOS = {'Separata o apuntes de clase', 'Diapositivas de clase', 'Guía de práctica', 'Sílabo de la unidad', 'Transcripción de clase'}
+DURACION_SESION = 8 * 3600
+ITERACIONES = 200000
+CORREO_VALIDO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+
+def _huella_clave(clave: str, sal: bytes) -> bytes:
+    return hashlib.pbkdf2_hmac('sha256', clave.encode(), sal, ITERACIONES)
+
 
 class ConfiguracionService:
-    def __init__(self, repo: ConfiguracionRepositoryPort, correo: str, clave: str):
+    def __init__(self, repo: ConfiguracionRepositoryPort, correo: str, clave: str, catalogo_demo: bool = True,
+                 nombre: str = 'Docente'):
+        """`correo` y `clave` forman la cuenta inicial (configurada en el servidor); si están vacíos no hay
+        cuenta inicial. Las demás cuentas se crean con `registrar_cuenta` y se guardan con su contraseña cifrada
+        (PBKDF2). `catalogo_demo` siembra el curso de ejemplo al iniciar sesión: solo lo usan las pruebas."""
         self.repo = repo
         self.correo = correo.strip().lower()
+        self.nombre = nombre
+        self.catalogo_demo = catalogo_demo
         self._sal = secrets.token_bytes(16)
-        self._clave = hashlib.pbkdf2_hmac('sha256', clave.encode(), self._sal, 200000)
+        self._clave = _huella_clave(clave, self._sal)
+
+    def registrar_cuenta(self, nombre, correo, clave):
+        correo = correo.strip().lower()
+        nombre = ' '.join(str(nombre).split())
+        if len(nombre) < 2:
+            raise ConfiguracionError('NOMBRE_INVALIDO', 'Escribe tu nombre.', 422)
+        if not CORREO_VALIDO.match(correo):
+            raise ConfiguracionError('CORREO_INVALIDO', 'Escribe un correo válido.', 422)
+        if len(clave) < 8:
+            raise ConfiguracionError('CLAVE_INSEGURA', 'La contraseña debe tener al menos 8 caracteres.', 422)
+        if correo == self.correo or self.repo.usuario_obtener(correo):
+            raise ConfiguracionError('CUENTA_EXISTENTE', 'Ya existe una cuenta con ese correo. Inicia sesión.', 409)
+        sal = secrets.token_bytes(16)
+        self.repo.usuario_crear({'email': correo, 'nombre': nombre, 'sal': sal.hex(), 'clave': _huella_clave(clave, sal).hex(),
+                                 'creado': datetime.now(timezone.utc).isoformat()})
+        return self._abrir_sesion(correo, nombre)
 
     def login(self, correo, clave):
-        candidata = hashlib.pbkdf2_hmac('sha256', clave.encode(), self._sal, 200000)
-        if correo.strip().lower() != self.correo or not hmac.compare_digest(candidata, self._clave):
+        correo = correo.strip().lower()
+        usuario = self.repo.usuario_obtener(correo)
+        if usuario:
+            valida = hmac.compare_digest(_huella_clave(clave, bytes.fromhex(usuario['sal'])).hex(), usuario['clave'])
+            nombre = usuario['nombre']
+        else:
+            # Se calcula la huella aunque el correo no exista: la respuesta tarda lo mismo en ambos casos.
+            valida = (hmac.compare_digest(_huella_clave(clave, self._sal), self._clave)
+                      and bool(self.correo) and correo == self.correo)
+            nombre = self.nombre
+        if not valida:
             raise ConfiguracionError('CREDENCIALES_INVALIDAS', 'Correo o contraseña incorrectos.', 401)
-        self.repo.iniciar_catalogo(self.correo)
+        if self.catalogo_demo and correo == self.correo:
+            self.repo.iniciar_catalogo(correo)  # solo la cuenta inicial de las pruebas recibe el curso de ejemplo
+        return self._abrir_sesion(correo, nombre)
+
+    def _abrir_sesion(self, correo, nombre):
         token = secrets.token_urlsafe(32)
-        self.repo.sesion_guardar(hashlib.sha256(token.encode()).hexdigest(), self.correo, time.time() + 8 * 3600)
-        return {'email': self.correo, 'token': token, 'expiresIn': 8 * 3600}
+        self.repo.sesion_guardar(hashlib.sha256(token.encode()).hexdigest(), correo, time.time() + DURACION_SESION)
+        return {'email': correo, 'name': nombre, 'token': token, 'expiresIn': DURACION_SESION}
+
+    def perfil(self, correo):
+        usuario = self.repo.usuario_obtener(correo)
+        return {'email': correo, 'name': usuario['nombre'] if usuario else self.nombre}
 
     def autenticar(self, authorization):
         if not authorization or not authorization.startswith('Bearer '):
@@ -128,6 +176,13 @@ class ConfiguracionService:
 
     def listar_cursos(self, docente):
         return self.repo.cursos(docente)
+
+    def borrar_curso(self, docente, id):
+        """Borra el curso con todo lo de sus unidades: documentos, fragmentos, recursos y descargas."""
+        curso = next((c for c in self.repo.cursos(docente) if c['id'] == id), None)
+        if curso is None:
+            raise ConfiguracionError('CURSO_NO_ENCONTRADO', 'El curso no existe.', 404)
+        self.repo.curso_borrar(docente, id, [u['id'] for u in curso['units']])
 
     def listar_documentos(self, docente):
         return self.repo.documentos(docente)

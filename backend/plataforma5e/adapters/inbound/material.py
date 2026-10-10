@@ -20,7 +20,7 @@ def crear_router_material(material: MaterialService, configuracion: Configuracio
     def docente(authorization: str | None = Depends(obtener_autorizacion)):
         return configuracion.autenticar(authorization)
 
-    @router.post('/documentos/desde-tema', status_code=201, summary='Buscar un tema en Wikipedia y guardarlo como material procesado')
+    @router.post('/documentos/desde-tema', status_code=201, summary='Buscar un tema en fuentes abiertas y guardarlo como material procesado')
     def desde_tema(req: TemaEntrada, email=Depends(docente)):
         return material.desde_tema(email, req.unitId, req.tema, req.maximo)
 

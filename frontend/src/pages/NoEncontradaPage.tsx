@@ -1,14 +1,11 @@
-import { ButtonLink, Card, EmptyState, PageHeader } from '../components/ui';
+import { ButtonLink, EmptyState } from '../components/ui';
+import { usePageTitle } from './usePageTitle';
 
 export function NoEncontradaPage() {
+  usePageTitle('Página no encontrada');
   return (
-    <>
-      <PageHeader overline="Error 404" title="Página no encontrada" />
-      <Card>
-        <EmptyState icon="alert" title="La dirección no corresponde a ninguna pantalla" action={<ButtonLink to="/" variant="primary" icon="home">Volver al inicio</ButtonLink>}>
-          Revisa el enlace o usa el menú de navegación.
-        </EmptyState>
-      </Card>
-    </>
+    <EmptyState icon="info" title="No encontramos esta página" action={<ButtonLink to="/" variant="primary">Ir a Mis cursos</ButtonLink>}>
+      Revisa la dirección o vuelve a tus cursos.
+    </EmptyState>
   );
 }

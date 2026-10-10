@@ -1,8 +1,7 @@
 /**
- * Serializadores de exportación del prototipo (HU-054, ADR-005).
+ * Archivos para Moodle y Chamilo (HU-054, ADR-005).
  *
- * El modelo de lenguaje nunca escribe XML: se arma aquí con plantillas fijas a partir de los
- * recursos aprobados. Son los mismos formatos que generará el backend:
+ * La IA nunca escribe XML: se arma aquí con plantillas fijas a partir de los recursos aprobados.
  *  - Moodle XML (<quiz>): misma estructura que `generar_moodle_xml` del backend (HU-043) y que la
  *    muestra importada con éxito en SP-003 (backend/tests/data/muestra_moodle_verificada.xml).
  *  - QTI 2.1 (Chamilo): un `assessmentItem` con `choiceInteraction` por ítem y un `imsmanifest.xml`,
@@ -43,7 +42,8 @@ function generalFeedback(resource: Resource): string {
   return claims.length ? `Para repasar: ${claims.join(' ')}` : '';
 }
 
-export function buildMoodleXml(resources: Resource[], category = 'Plataforma 5E'): string {
+/** `category`: carpeta del banco de preguntas de Moodle donde quedan las preguntas importadas. */
+export function buildMoodleXml(resources: Resource[], category = 'Plataforma Docente'): string {
   const xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<quiz>'];
   xml.push(
     `  <question type="category"><category><text>$course$/top/${escapeXml(category)}</text></category><info format="html"><text></text></info><idnumber></idnumber></question>`,
@@ -125,7 +125,7 @@ export function buildQti21Item(resource: Resource): string {
   return lines.join('\n');
 }
 
-export function buildQti21Manifest(resources: Resource[], packageId = 'plataforma5e'): string {
+export function buildQti21Manifest(resources: Resource[], packageId = 'plataforma-docente'): string {
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="${qtiIdentifier(packageId)}"`,
@@ -235,9 +235,9 @@ export function createZip(files: { name: string; content: string }[], date = new
   return out;
 }
 
-export function buildQti21Package(resources: Resource[]): Uint8Array {
+export function buildQti21Package(resources: Resource[], packageId?: string): Uint8Array {
   return createZip([
-    { name: 'imsmanifest.xml', content: buildQti21Manifest(resources) },
+    { name: 'imsmanifest.xml', content: buildQti21Manifest(resources, packageId) },
     ...resources.map((r) => ({ name: qti21FileName(r), content: buildQti21Item(r) })),
   ]);
 }

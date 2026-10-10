@@ -1,7 +1,16 @@
-"""Cursos, archivos y sesiones persistentes. Los bytes se guardan en la misma BD."""
+"""Cuentas, sesiones, cursos, archivos, recursos revisados y descargas. Los bytes se guardan en la misma BD."""
 from sqlalchemy import Column, String, JSON, LargeBinary, Float, Integer, Text, UniqueConstraint, delete, select
 from plataforma5e.adapters.outbound.persistence.db import Base, engine, SessionLocal
 from plataforma5e.adapters.outbound.persistence.sqlalchemy_generacion_repository import GeneracionORM, GeneracionDocenteORM
+
+class UsuarioORM(Base):
+    """Cuentas de docente (HU-001). La contraseña se guarda como huella PBKDF2 con su sal."""
+    __tablename__ = 'ep002_usuarios'
+    email = Column(String, primary_key=True)
+    nombre = Column(String, nullable=False)
+    sal = Column(String, nullable=False)
+    clave = Column(String, nullable=False)
+    creado = Column(String, nullable=False)
 
 class SesionORM(Base):
     __tablename__ = 'ep002_sesiones'
@@ -38,14 +47,45 @@ class FragmentoORM(Base):
     ubicacion = Column(String, nullable=False)
     texto = Column(Text, nullable=False)
 
+class RecursoDocenteORM(Base):
+    """Recursos generados para una unidad, con su revisión (HU-010). `datos` guarda el recurso completo."""
+    __tablename__ = 'ep002_recursos'
+    id = Column(String, primary_key=True)
+    docente = Column(String, nullable=False, index=True)
+    unidad = Column(String, nullable=False, index=True)
+    creado = Column(String, nullable=False)
+    datos = Column(JSON, nullable=False)
+
+class DescargaORM(Base):
+    """Historial de descargas (Moodle XML, QTI 2.1 o documento) de una unidad."""
+    __tablename__ = 'ep002_descargas'
+    id = Column(String, primary_key=True)
+    docente = Column(String, nullable=False, index=True)
+    unidad = Column(String, nullable=False, index=True)
+    creado = Column(String, nullable=False)
+    datos = Column(JSON, nullable=False)
+
+TABLAS = (UsuarioORM, SesionORM, CursoORM, DocumentoORM, FragmentoORM, RecursoDocenteORM, DescargaORM)
+
 from plataforma5e.adapters.outbound.persistence.errores import traducir_errores
 
 class SQLAlchemyConfiguracionRepository:
     @traducir_errores
     def __init__(self, generaciones):
         self._generaciones = generaciones
-        for tabla in (SesionORM, CursoORM, DocumentoORM, FragmentoORM, GeneracionDocenteORM):
+        for tabla in (*TABLAS, GeneracionDocenteORM):
             tabla.__table__.create(engine, checkfirst=True)
+
+    @traducir_errores
+    def usuario_obtener(self, email):
+        with SessionLocal() as s:
+            e = s.get(UsuarioORM, email)
+            return {'email': e.email, 'nombre': e.nombre, 'sal': e.sal, 'clave': e.clave} if e else None
+
+    @traducir_errores
+    def usuario_crear(self, usuario):
+        with SessionLocal() as s:
+            s.add(UsuarioORM(**usuario)); s.commit()
 
     @traducir_errores
     def iniciar_catalogo(self, docente):
@@ -83,6 +123,15 @@ class SQLAlchemyConfiguracionRepository:
     def curso_guardar(self, docente, curso):
         with SessionLocal() as s:
             s.merge(CursoORM(docente=docente, id=curso['id'], codigo=curso['code'], datos=curso)); s.commit()
+
+    @traducir_errores
+    def curso_borrar(self, docente, curso_id, unidades):
+        """Borra el curso y lo que cuelga de sus unidades, en una sola transacción."""
+        with SessionLocal() as s:
+            for tabla in (FragmentoORM, DocumentoORM, RecursoDocenteORM, DescargaORM):
+                s.execute(delete(tabla).where(tabla.docente == docente, tabla.unidad.in_(unidades)))
+            s.execute(delete(CursoORM).where(CursoORM.docente == docente, CursoORM.id == curso_id))
+            s.commit()
 
     @traducir_errores
     def documentos(self, docente):

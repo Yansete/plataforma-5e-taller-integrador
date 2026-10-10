@@ -17,9 +17,32 @@ URL_POR_DEFECTO = {
 }
 REINTENTO = '\n\nTu respuesta anterior no era JSON válido. Responde solo con el objeto JSON pedido.'
 
+_TEXTO = {'type': 'STRING'}
+_ETIQUETAS = {'type': 'ARRAY', 'items': _TEXTO}
+# Salida estructurada de Gemini: obliga a responder con las claves que valida redaccion.normalizar_recursos.
+ESQUEMA_GEMINI = {
+    'type': 'OBJECT',
+    'properties': {'recursos': {'type': 'ARRAY', 'items': {
+        'type': 'OBJECT',
+        'properties': {
+            'titulo': _TEXTO,
+            'contenido': _TEXTO,
+            'citas': {'type': 'ARRAY', 'items': {'type': 'OBJECT', 'properties': {
+                'afirmacion': _TEXTO, 'fragmentos': _ETIQUETAS}, 'required': ['afirmacion', 'fragmentos']}},
+            'alternativas': {'type': 'ARRAY', 'items': {'type': 'OBJECT', 'properties': {
+                'texto': _TEXTO, 'correcta': {'type': 'BOOLEAN'}, 'retroalimentacion': _TEXTO, 'fragmentos': _ETIQUETAS},
+                'required': ['texto', 'correcta', 'retroalimentacion', 'fragmentos']}},
+        },
+        'required': ['titulo', 'contenido', 'citas', 'alternativas'],
+    }}},
+    'required': ['recursos'],
+}
+
 
 class ErrorProveedorIA(Exception):
-    pass
+    def __init__(self, mensaje: str, estado: int | None = None):
+        super().__init__(mensaje)
+        self.estado = estado
 
 
 class GeneradorLLM:
@@ -34,6 +57,7 @@ class GeneradorLLM:
         self._clave = clave
         self._url = (url_base or URL_POR_DEFECTO[proveedor]).rstrip('/')
         self._cliente = cliente or httpx.Client(timeout=tiempo_max)
+        self._esquema = proveedor == 'gemini'
         self.descripcion = f'{NOMBRES[proveedor]} · {self.modelo}'
 
     def generar(self, contexto: dict) -> dict:
@@ -46,13 +70,22 @@ class GeneradorLLM:
 
     def _completar(self, sistema: str, usuario: str) -> str:
         if self.proveedor == 'gemini':
-            datos = self._enviar(
-                f'{self._url}/models/{self.modelo}:generateContent',
-                {'x-goog-api-key': self._clave},
-                {'systemInstruction': {'parts': [{'text': sistema}]},
-                 'contents': [{'role': 'user', 'parts': [{'text': usuario}]}],
-                 'generationConfig': {'responseMimeType': 'application/json'}},
-            )
+            configuracion = {'responseMimeType': 'application/json'}
+            if self._esquema:
+                configuracion['responseSchema'] = ESQUEMA_GEMINI
+            try:
+                datos = self._enviar(
+                    f'{self._url}/models/{self.modelo}:generateContent',
+                    {'x-goog-api-key': self._clave},
+                    {'systemInstruction': {'parts': [{'text': sistema}]},
+                     'contents': [{'role': 'user', 'parts': [{'text': usuario}]}],
+                     'generationConfig': configuracion},
+                )
+            except ErrorProveedorIA as exc:
+                if exc.estado != 400 or not self._esquema:
+                    raise
+                self._esquema = False  # el modelo no aceptó el esquema: se sigue con JSON libre
+                return self._completar(sistema, usuario)
             candidatos = datos.get('candidates') or []
             if not candidatos:
                 motivo = (datos.get('promptFeedback') or {}).get('blockReason', 'sin candidatos')
@@ -87,6 +120,6 @@ class GeneradorLLM:
             except ValueError:
                 mensaje = respuesta.text[:200]
             if respuesta.status_code == 429:
-                raise ErrorProveedorIA(f'límite de uso de {NOMBRES[self.proveedor]} alcanzado (429). Espera un minuto.')
-            raise ErrorProveedorIA(f'{NOMBRES[self.proveedor]} respondió {respuesta.status_code}: {mensaje[:200]}')
+                raise ErrorProveedorIA(f'límite de uso de {NOMBRES[self.proveedor]} alcanzado (429). Espera un minuto.', 429)
+            raise ErrorProveedorIA(f'{NOMBRES[self.proveedor]} respondió {respuesta.status_code}: {mensaje[:200]}', respuesta.status_code)
         return respuesta.json()

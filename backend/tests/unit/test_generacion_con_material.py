@@ -85,7 +85,7 @@ def test_genera_con_material_cita_fragmentos_y_guarda_historial():
     ia = Generador({'recursos': [ITEM]})
     gen, repo = servicio(ia)
     resultado = gen.generar(solicitud(), 'docente')
-    assert resultado['mode'] == 'rag' and resultado['generator'] == {'descripcion': 'IA falsa', 'usaIA': True}
+    assert resultado['mode'] == 'rag' and resultado['generator'] == {'descripcion': 'IA falsa', 'usaIA': True, 'fallback': False}
     recurso = resultado['resources'][0]
     assert recurso['source'] == 'rag' and recurso['status'] == 'pendiente' and recurso['outcomeId'] == 'ra-1'
     # Las etiquetas F1, F2… se asignan en el orden de relevancia de la búsqueda.
@@ -100,13 +100,32 @@ def test_genera_con_material_cita_fragmentos_y_guarda_historial():
     assert repo.guardados[0][1] == 'docente'
     contexto = ia.contextos[0]
     assert contexto['curso']['sumilla'] == 'Curso de redes.' and contexto['fragmentos'][0]['etiqueta'] == 'F1'
+    # Cada recurso lleva su evidencia copiada y los parámetros para poder regenerarlo.
+    assert recurso['generatorKind'] == 'ia' and recurso['params']['optionCount'] == 3
+    assert {e['id'] for e in recurso['evidence']} == {real['F1'], real['F2']} and recurso['evidence'][0]['documentName'] == 'apuntes.pdf'
 
 
-def test_si_la_ia_falla_usa_el_respaldo_y_lo_avisa():
+def test_los_recursos_generados_se_guardan_para_la_revision():
+    class Revision:
+        def __init__(self):
+            self.guardados = []
+
+        def recursos_guardar(self, docente, unidad_id, recursos):
+            self.guardados.append((docente, unidad_id, [r['id'] for r in recursos]))
+
+    revision = Revision()
+    gen = GeneracionService(RepoGeneraciones(), Config(), Material(), Generador({'recursos': [ITEM]}), None, revision)
+    resultado = gen.generar(solicitud(), 'docente')
+    assert revision.guardados == [('docente', 'u1', [resultado['resources'][0]['id']])]
+
+
+def test_si_la_ia_falla_usa_el_respaldo_y_lo_avisa(caplog):
     reglas = Generador({'recursos': [ITEM]}, descripcion='Reglas', usa_ia=False)
     gen, _ = servicio(Generador(error=RuntimeError('429 límite')), reglas)
     resultado = gen.generar(solicitud(), 'docente')
-    assert resultado['generator']['descripcion'] == 'Reglas'
+    assert resultado['generator']['descripcion'] == 'Reglas' and resultado['generator']['fallback'] is True
+    assert resultado['resources'][0]['generatorKind'] == 'respaldo'
+    assert '429 límite' in caplog.text  # el motivo queda en los registros del servidor
     assert 'no respondió' in resultado['notice'] and 'generador por reglas' in resultado['notice']
 
 
@@ -136,7 +155,7 @@ def test_unidad_sin_material_ni_demo_pide_subir_material():
     gen, _ = servicio(Generador({'recursos': [ITEM]}), material=Material([]))
     with pytest.raises(GeneracionError) as error:
         gen.generar(solicitud(), 'docente')
-    assert error.value.codigo == 'SIN_MATERIAL_PROCESADO' and 'Carga de material' in error.value.mensaje
+    assert error.value.codigo == 'SIN_MATERIAL_PROCESADO' and 'pestaña Material' in error.value.mensaje
 
 
 def test_sin_docente_usa_la_demostracion():
@@ -178,6 +197,16 @@ def contexto_item(cantidad=1, alternativas=3):
     return construir_contexto(CURSO, UNIDAD, solicitud(quantity=cantidad, optionCount=alternativas), FRAGMENTOS, {})
 
 
+def test_normalizar_acepta_etiquetas_juntas_y_clave_como_texto():
+    alternativas = [{'texto': 'TCP', 'correcta': 'true', 'fragmentos': 'F1, F2'}, {'texto': 'UDP', 'correcta': 'false'},
+                    {'texto': 'IP', 'esCorrecta': False}]
+    item = {**ITEM, 'citas': [{'afirmacion': 'a', 'fragmentos': 'Fragmentos F2 y F1'}], 'alternativas': alternativas}
+    recurso = normalizar_recursos({'recursos': [item]}, contexto_item())[0]
+    assert recurso['citas'][0]['fragmentIds'] == ['f2', 'f1']
+    clave = next(a for a in recurso['alternativas'] if a['correcta'])
+    assert clave['texto'] == 'TCP' and clave['fragmentos'] == ['f1', 'f2']
+
+
 def test_normalizar_acepta_etiquetas_en_varios_formatos_y_recorta_cantidad():
     item = {**ITEM, 'citas': [{'afirmacion': 'a', 'fragmentos': ['f2', '[F1]', 1, 'F7']}]}
     recursos = normalizar_recursos({'recursos': [item, item]}, contexto_item(cantidad=1))
@@ -205,3 +234,13 @@ def test_normalizar_descarta_recursos_sin_cita_o_sin_contenido_y_completa_titulo
         'basura',
     ]}, ctx)
     assert len(recursos) == 1 and recursos[0]['titulo'] == 'Explicación citada 1' and recursos[0]['alternativas'] is None
+
+
+def test_sin_ejemplos_de_prueba_una_unidad_sin_material_pide_subirlo():
+    gen = GeneracionService(RepoGeneraciones(), Config(), Material([]), Generador({'recursos': [ITEM]}), None,
+                            ejemplos_demo=False)
+    with pytest.raises(GeneracionError) as error:
+        gen.generar(solicitud(), 'docente')
+    assert error.value.codigo == 'SIN_MATERIAL_PROCESADO' and 'pestaña Material' in error.value.mensaje
+    with pytest.raises(GeneracionError):
+        gen.generar(solicitud(), None)  # sin sesión tampoco hay ejemplos preparados

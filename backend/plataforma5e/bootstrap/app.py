@@ -34,10 +34,13 @@ from plataforma5e.adapters.outbound.extraccion.extractor_documentos import Extra
 from plataforma5e.adapters.outbound.fuentes.wikipedia import FuenteWikipedia
 from plataforma5e.adapters.outbound.ia.configuracion_ia import crear_generadores, describir
 from plataforma5e.adapters.inbound.error_handlers import recurso_no_encontrado_handler, error_configuracion, conflicto, error_bd
+from plataforma5e.adapters.inbound.revision import crear_router_revision
+from plataforma5e.adapters.outbound.persistence.sqlalchemy_revision_repository import SQLAlchemyRevisionRepository
+from plataforma5e.application.services.revision_service import RevisionService
 
 
 def crear_aplicacion() -> FastAPI:
-    app = FastAPI(title="Plataforma 5E - Backend Hexagonal", version="1.1.0")
+    app = FastAPI(title="Plataforma Docente - Backend", version="1.2.0")
 
     # El frontend publicado (Vercel) llama al backend desde otro dominio: se permite solo
     # a los orígenes de CORS_ORIGENES (separados por comas). En local, Vite usa un proxy.
@@ -51,20 +54,27 @@ def crear_aplicacion() -> FastAPI:
 
     generaciones = SQLAlchemyGeneracionRepository()
     repositorio_configuracion = SQLAlchemyConfiguracionRepository(generaciones)
+    # El curso y la cuenta de ejemplo solo los usan las pruebas (CATALOGO_DEMO=true). El sistema publicado
+    # empieza vacío: cada docente crea su cuenta. La cuenta inicial existe solo si se configura en el servidor.
+    catalogo_demo = os.getenv('CATALOGO_DEMO', 'false').lower() == 'true'
     configuracion = ConfiguracionService(
         repositorio_configuracion,
-        correo=os.getenv('EP002_DOCENTE_EMAIL', 'docente@5e.demo'),
-        clave=os.getenv('EP002_DOCENTE_PASSWORD', 'Demo5E!2026'),
+        correo=os.getenv('EP002_DOCENTE_EMAIL', 'docente@5e.demo' if catalogo_demo else ''),
+        clave=os.getenv('EP002_DOCENTE_PASSWORD', 'Demo5E!2026' if catalogo_demo else ''),
+        catalogo_demo=catalogo_demo,
     )
     # Ingesta y RAG: material real del docente y generador (IA si hay clave; si no, reglas).
     repositorio_material = SQLAlchemyMaterialRepository()
     material = MaterialService(repositorio_configuracion, repositorio_material, ExtractorDocumentos(),
                                FuenteWikipedia() if os.getenv('BUSQUEDA_POR_TEMA', 'true').lower() != 'false' else None)
     generador, respaldo = crear_generadores()
+    repositorio_revision = SQLAlchemyRevisionRepository()
     app.include_router(crear_router_configuracion(configuracion))
+    app.include_router(crear_router_revision(RevisionService(repositorio_configuracion, repositorio_revision), configuracion))
     app.include_router(crear_router_material(material, configuracion, describir(generador)))
     app.include_router(crear_router_generaciones(
-        GeneracionService(generaciones, repositorio_configuracion, repositorio_material, generador, respaldo), configuracion))
+        GeneracionService(generaciones, repositorio_configuracion, repositorio_material, generador, respaldo,
+                          repositorio_revision, ejemplos_demo=catalogo_demo), configuracion))
 
     app.add_exception_handler(ConfiguracionError, error_configuracion)
     app.add_exception_handler(MaterialError, error_configuracion)

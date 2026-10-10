@@ -1,9 +1,9 @@
 {
-  "name": "plataforma-5e-frontend",
+  "name": "plataforma-docente-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "Frontend de demostración de la plataforma de generación asistida de contenido educativo (Taller Integrador 1).",
+  "description": "Frontend de la Plataforma Docente: cursos, material, generación, revisión y descargas (Taller Integrador 1).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -11,8 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:cobertura": "vitest run --coverage",
-    "test:api:e2e": "playwright test --config playwright.api.config.ts"
+    "test:cobertura": "vitest run --coverage"
   },
   "dependencies": {
     "react": "^18.3.1",

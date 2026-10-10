@@ -1,27 +1,38 @@
-# Arquitectura y estado de Plataforma 5E
+# Arquitectura y estado de la Plataforma Docente
 
-Actualizado el 10/10/2026 (tarde), después de la revisión del asesor de la semana 6. Este documento reúne el estado
-del proyecto, la integración con el backend y las convenciones para retomar el trabajo.
+Actualizado el 10/10/2026 (noche), con el rediseño de la interfaz aprobado por el equipo: una sola forma de trabajo,
+con cuentas reales y todo guardado en la base de datos. Este documento reúne el estado del proyecto, la integración
+con el backend y las convenciones para retomar el trabajo.
 
 ## Estado actual
 
-Existe un frontend React 18, TypeScript y Vite 5 y un backend FastAPI con SQLAlchemy. El frontend ofrece
-modo local (prototipo con ejemplos preparados) y modo conectado. En modo conectado el flujo es real: el backend
-extrae el texto del material, lo parte en fragmentos, recupera los relacionados con cada solicitud (BM25) y un
-generador redacta los recursos citándolos (RAG). El generador es un modelo de lenguaje si hay clave de IA o un
-generador por reglas si no la hay. La exportación produce archivos reales con plantillas fijas. La importación
-en instancias reales de Moodle y Chamilo permanece pendiente (TA-006).
+Existe un frontend React 18, TypeScript y Vite 5 y un backend FastAPI con SQLAlchemy. El frontend siempre trabaja con
+el backend: no hay modo local ni datos de demostración. El backend extrae el texto del material, lo parte en
+fragmentos, recupera los relacionados con cada pedido (BM25) y un generador redacta los recursos citándolos (RAG).
+El generador es un modelo de lenguaje si hay clave de IA o un generador por reglas si no la hay (o si la IA falla).
+La revisión docente y el historial de descargas se guardan en el servidor. Los archivos para Moodle y Chamilo se
+arman con plantillas fijas. La importación en instancias reales de Moodle y Chamilo permanece pendiente (TA-006).
+
+El modelo instruccional 5E sigue siendo la base: cada tipo de recurso pertenece a una etapa, que se envía al
+backend y orienta la redacción. En la interfaz no se nombran las etapas; se muestran como momentos de la clase.
+
+| Momento en la interfaz | Etapa 5E | Tipos de recurso |
+|---|---|---|
+| Para iniciar la clase | Enganchar (*engage*) | Pregunta detonante, sondeo de ideas previas |
+| Para explorar | Explorar (*explore*) | Guía de exploración, caso con preguntas |
+| Para explicar | Explicar (*explain*) | Explicación del tema, glosario |
+| Para aplicar | Elaborar (*elaborate*) | Ejercicio de aplicación |
+| Para evaluar | Evaluar (*evaluate*) | Preguntas de opción múltiple |
 
 | Área | Funcionamiento actual | Límite |
 |---|---|---|
-| Sesión | HU-045 local; EP-002 verifica una cuenta demo en el servidor con token revocable de ocho horas | Registro de usuarios y roles de producción pendientes |
-| Cursos y unidades | Creación y edición locales o por API, con sumilla, logro y resultados de aprendizaje por unidad | — |
-| Material | Conectado: archivo en la BD, extracción de PDF, PPTX y TXT, fragmentos de unas 220 palabras con su página, «Ver fragmentos» y búsqueda por tema en Wikipedia. Local: procesamiento simulado | Los PDF escaneados (solo imágenes) no tienen texto; no hay OCR. Sin embeddings todavía (EN-013) |
-| Solicitud | Selectores o chat por reglas, interpretación editable y confirmación antes del POST | El chat no interpreta mediante modelos de IA |
-| Generación e historial | Con material procesado: recuperación BM25 y redacción con IA (Gemini, Anthropic u OpenAI) o por reglas; solo se aceptan recursos con citas válidas. Unidades de ejemplo sin material: propuestas preparadas | Un solo agente por pedido; el orquestador sin repetir contenido entre etapas es HU-003. El umbral de evidencia aún no filtra |
-| Secuencia y revisión | Cinco etapas 5E, decisiones explícitas, regeneración simulada e historial de versiones | Las decisiones del frontend se guardan localmente; sincronización pendiente |
-| Exportación | Frontend: Moodle XML y ZIP QTI 2.1 de los ítems aprobados y la secuencia completa como documento HTML. API de demo: Moodle XML de recursos aprobados | Exportación de la interfaz y API de recursos son recorridos distintos; no están sincronizados |
-| Indicadores | I2, I3, I5, I22 e I23 calculados localmente; otros valores de ejemplo o pendientes | No representan métricas de un piloto con estudiantes |
+| Cuentas y sesión | «Crear cuenta» con contraseña cifrada (PBKDF2) y sesión con token revocable de ocho horas | Sin recuperación de contraseña ni roles |
+| Cursos y unidades | Creación, edición y borrado (con su material, recursos y descargas), con sumilla, logro y resultados de aprendizaje | Las unidades guardadas no se quitan de un curso; se borra el curso completo |
+| Material | Archivo en la BD, extracción de PDF, PPTX y TXT, fragmentos de unas 220 palabras con su página, «Ver fragmentos» y búsqueda por tema en Wikipedia en español | Los PDF escaneados (solo imágenes) no tienen texto; no hay OCR. Sin embeddings todavía (EN-013) |
+| Pedido | «Elegir opciones» (agrupadas por momento de la clase) o «Escribir pedido»: reglas que interpretan tipo, cantidad, dificultad, alternativas y resultado, y muestran lo entendido; el texto completo va como indicación | La interpretación del pedido escrito es por reglas, no por IA |
+| Generación | Recuperación BM25 y redacción con IA (Gemini, Anthropic u OpenAI) o por reglas; solo se aceptan recursos con citas válidas. Cada recurso guarda una copia de su evidencia y los parámetros del pedido | Un solo agente por pedido; el orquestador entre etapas es HU-003. El umbral de evidencia aún no filtra |
+| Revisión | En el servidor: aceptar, editar o descartar distractores (con motivo), aprobar con las mismas reglas que el backend, regenerar (la versión anterior pasa a «Descartados») y borrar | No hay «Aceptar todos» (decisión del equipo: se revisa uno por uno) |
+| Descargas | Moodle XML y ZIP QTI 2.1 de las preguntas aprobadas, y el documento de la unidad (HTML) con todos los recursos aprobados y su evidencia. Nombres con el curso y la unidad. Historial en el servidor, con «Borrar historial» | Importación en LMS reales pendiente (TA-006) |
 
 ## Backend hexagonal
 
@@ -43,8 +54,14 @@ La estructura de EN-004 es `backend/plataforma5e/`:
 - `adapters/outbound/ia/`: generador con modelo de lenguaje por HTTP, generador por reglas y selección por variables de entorno.
 - `bootstrap/`: crea los adaptadores, inyecta servicios y casos de uso y registra routers y manejadores.
 
-Configuración recibe el correo y la clave de demostración desde bootstrap mediante
-`EP002_DOCENTE_EMAIL` y `EP002_DOCENTE_PASSWORD`. El servicio no lee variables de entorno.
+Las cuentas se crean con `POST /api/v1/cuentas` y se guardan en `ep002_usuarios` con su sal y la huella PBKDF2 de la
+contraseña. Opcionalmente, bootstrap pasa una cuenta inicial (`EP002_DOCENTE_EMAIL` y `EP002_DOCENTE_PASSWORD`); si no
+se definen, no existe. `CATALOGO_DEMO=true` (solo pruebas) activa la cuenta y el curso de ejemplo y las propuestas
+preparadas para unidades sin material. El servicio no lee variables de entorno.
+
+`RevisionService` guarda la revisión de cada recurso (`ep002_recursos`) y el historial de descargas
+(`ep002_descargas`). Un recurso solo queda «aprobado» si no hay distractores pendientes, hay al menos dos aceptados y
+una clave: la misma regla que muestra la pantalla.
 El repositorio de configuración recibe el catálogo de generación por constructor; no crea otro repositorio.
 
 Una decisión debe ser `aceptar`, `descartar` o `editar`. Los recursos inexistentes producen 404.
@@ -55,20 +72,21 @@ Los valores de evidencia del dominio empiezan vacíos: no se inventa el fragment
 
 Swagger está en `http://localhost:8000/docs`; OpenAPI está en `/openapi.json` y en
 [openapi.json](openapi.json). El esquema HTTP Bearer `SesionDocente` permite autorizar con el token obtenido
-al iniciar sesión. La cuenta predeterminada es pública y exclusiva de la demo.
+al iniciar sesión o al crear la cuenta.
 
 | URL con prefijo `/api/v1` | Operación |
 |---|---|
-| `/sesiones` y `/sesiones/actual` | POST login; GET sesión; DELETE cierre |
-| `/cursos` y `/cursos/{id}` | GET lista; POST creación; PUT edición |
+| `/cuentas` | POST crear cuenta de docente (abre la sesión) |
+| `/sesiones` y `/sesiones/actual` | POST login; GET perfil (correo y nombre); DELETE cierre |
+| `/cursos` y `/cursos/{id}` | GET lista; POST creación; PUT edición; DELETE borrado con su material, recursos y descargas |
+| `/unidades/{id}/recursos` y `/unidades/{id}/recursos/{rid}` | GET recursos de la unidad con su revisión; PUT guardar la revisión; DELETE borrar |
+| `/unidades/{id}/descargas` | GET historial; POST registrar una descarga; DELETE borrar el historial |
+| `/resumen` | GET recursos aprobados y por revisar de cada unidad |
 | `/documentos` y `/documentos/{id}` | GET lista; POST multipart con archivo y contexto; DELETE eliminación |
 | `/documentos/{id}/archivo` | GET archivo original |
-| `/generaciones` y `/generaciones/{id}` | POST propuesta de demo; GET recuperación |
+| `/generaciones` y `/generaciones/{id}` | POST generar con el material de la unidad (los recursos quedan para revisión); GET recuperación |
 | `/solicitudes` | GET historial autenticado |
-| `/recursos/generar` y `/recursos/{id}` | POST reinicio de recursos de demo; GET recurso |
-| `/recursos/{id}/alternativas/{letra}/decision` | POST revisión de alternativa |
-| `/recursos/{id}/aprobar` | POST aprobación explícita |
-| `/exportaciones` | POST Moodle XML de aprobados |
+| `/recursos/generar`, `/recursos/{id}`, `/recursos/{id}/alternativas/{letra}/decision`, `/recursos/{id}/aprobar`, `/exportaciones` | API de HU-043 (revisión y Moodle XML sobre recursos de ejemplo). La conservan sus pruebas; la interfaz usa `/unidades/{id}/recursos` |
 | `/documentos/{id}/procesar` | POST extraer el texto y crear los fragmentos |
 | `/documentos/{id}/fragmentos` | GET fragmentos del documento |
 | `/documentos/desde-tema` | POST buscar el tema en Wikipedia y guardarlo como material procesado |
@@ -80,21 +98,22 @@ Desde `backend/`, `python scripts/export_contracts.py` regenera sus JSON Schema 
 
 ## Frontend y puntos de integración
 
-Las pantallas leen el store con `useAppState` y escriben mediante servicios. Los selectores devuelven referencias
-estables; los arreglos derivados se calculan con `useMemo`. `services/index.ts` conserva las firmas públicas.
+Rutas: `/entrar`, `/crear-cuenta`, `/` (Mis cursos), `/cursos/nuevo`, `/cursos/:id`, `/cursos/:id/editar` y
+`/cursos/:id/unidades/:unidad/:pestaña` (`material`, `generacion`, `revision`, `exportacion`). Sin sesión, las rutas
+internas llevan a «Inicio de sesión» y luego regresan a donde estaba el docente.
 
-| Servicio | Origen actual |
+| Parte | Qué hace |
 |---|---|
-| `sessionService`, `courseService` | Sesión y cursos locales o conectados |
-| `materialService` | Registro local o almacenamiento real por API según el modo |
-| `generationApiService`, `configurationApiService` | Solicitudes, propuestas de demo e historial mediante HTTP |
-| `chatService`, `preferencesService` | Interpretación por reglas y preferencias locales |
-| `reviewService`, `exportService` | Decisiones locales y archivos construidos en el navegador |
-| `indicatorService` | Indicadores locales, de ejemplo o pendientes |
+| `services/api.ts` | Cliente HTTP: agrega la sesión, traduce errores a mensajes, distingue «sin conexión» de «tiempo agotado» y cierra la sesión vencida |
+| `services/sesion.ts`, `cursos.ts`, `material.ts`, `generacion.ts` | Cuentas, cursos (con borrado y resumen), material (subir, procesar, buscar tema) y generación |
+| `services/pedido.ts` | Interpreta el pedido escrito por reglas (tipo, cantidad, dificultad, alternativas y resultado) |
+| `services/revision.ts` | Reglas para aprobar (iguales a las del backend), cambios del docente, guardado, regeneración y evidencia |
+| `services/descargas.ts`, `documento.ts`, `exportFormats.ts` | Archivos de descarga (Moodle XML, QTI 2.1 en ZIP, documento HTML) e historial |
+| `state/datos.tsx` | Sesión (`useSession`) y datos compartidos: cursos, documentos y resumen de recursos |
+| `pages/unidad/*` | Las cuatro pestañas de la unidad; los recursos se cargan una vez y las pestañas los comparten |
 
-El store conserva metadatos, preferencias y decisiones en `localStorage`; no guarda bytes de archivos.
-La sesión conectada usa `sessionStorage`. El estado local y la caché conectada permanecen separados.
-Una edición no aprueba un recurso. Solo la acción docente de aprobar lo vuelve exportable.
+La sesión se guarda en `localStorage` (`plataforma-docente.sesion`); los datos del docente viven en el servidor.
+Una edición no aprueba un recurso: solo la acción «Aprobar recurso» lo vuelve descargable.
 
 ## Diseño y convenciones
 
@@ -110,13 +129,13 @@ No se atribuyen aprobaciones académicas ni pruebas con docentes sin evidencia.
 
 ## Persistencia y entorno
 
-El backend usa SQLite por defecto (`sqlite:///./demo.db`) y admite PostgreSQL con
+El backend usa SQLite por defecto y admite PostgreSQL con
 `DATABASE_URL=postgresql+psycopg://...`. La URL `postgres://...` de `.env.example` corresponde al entorno
 de dbmate y no se utiliza directamente para SQLAlchemy. La configuración se establece en la terminal del backend.
 Las dependencias del backend se definen en `backend/pyproject.toml`.
 
 El entorno de EN-011 en `db/` usa PostgreSQL 17 y pgvector 0.8.1, migraciones dbmate, fragmentos de 768
-dimensiones e índices HNSW y GIN. Es distinto del almacenamiento de demo por defecto. Ver
+dimensiones e índices HNSW y GIN. Es distinto del almacenamiento que usa hoy el backend. Ver
 [la guía de base de datos](../db/README.md). Las migraciones y `db/schema.sql` no se modifican en esta limpieza.
 No se editarán migraciones ya aplicadas; los futuros cambios de esquema requieren una nueva migración.
 
@@ -146,7 +165,7 @@ Comprobaciones antes de entregar:
 npm run typecheck
 npm test
 npm run build
-npm run test:e2e
+npm run test:e2e          # levanta el backend (Python con el backend instalado) y Vite
 # En backend/, con .venv activo
 pytest
 pytest tests/unit tests/arquitectura tests/integration --cov=plataforma5e.domain --cov=plataforma5e.application --cov-fail-under=80
@@ -162,11 +181,10 @@ Los informes de avance y las validaciones académicas también se conservan en N
 ## Pendientes y límites
 
 Embeddings y búsqueda por significado con pgvector (EN-013, HU-011), unificación con `db/migrations` (EN-024),
-orquestación de los agentes de las cinco etapas sin repetir contenido (HU-003), regeneración con el modelo (HU-052),
-OCR de PDF escaneados, autenticación de producción, sincronización de decisiones y exportaciones, importación LMS y
-mediciones del piloto.
-Faltan validación con docentes, lectores de pantalla y pruebas amplias de rendimiento. Las solicitudes rechazadas
-no aparecen en el historial. La carga simulada interrumpida por recarga queda en error y permite reintento.
+orquestación de los agentes de las cinco etapas sin repetir contenido (HU-003), OCR de PDF escaneados, recuperación
+de contraseña, importación en LMS reales y mediciones del piloto. Indicadores (antes una pantalla con valores de
+ejemplo) se medirán con datos reales en el Sprint 2.
+Faltan validación con docentes, lectores de pantalla y pruebas amplias de rendimiento.
 
 ## Investigaciones y antecedentes
 

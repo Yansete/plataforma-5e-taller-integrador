@@ -1,14 +1,53 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Plataforma 5E - Backend Hexagonal",
-    "version": "1.1.0"
+    "title": "Plataforma Docente - Backend",
+    "version": "1.2.0"
   },
   "paths": {
+    "/api/v1/cuentas": {
+      "post": {
+        "tags": [
+          "Cuentas, cursos y documentos"
+        ],
+        "summary": "Crear una cuenta de docente e iniciar sesión",
+        "operationId": "registrar_api_v1_cuentas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Registro"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sesiones": {
       "post": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Login",
         "operationId": "login_api_v1_sesiones_post",
@@ -47,7 +86,7 @@
     "/api/v1/sesiones/actual": {
       "get": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Actual",
         "operationId": "actual_api_v1_sesiones_actual_get",
@@ -69,7 +108,7 @@
       },
       "delete": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Logout",
         "operationId": "logout_api_v1_sesiones_actual_delete",
@@ -88,7 +127,7 @@
     "/api/v1/cursos": {
       "get": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Cursos",
         "operationId": "cursos_api_v1_cursos_get",
@@ -110,7 +149,7 @@
       },
       "post": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Crear",
         "operationId": "crear_api_v1_cursos_post",
@@ -154,7 +193,7 @@
     "/api/v1/cursos/{id}": {
       "put": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Editar",
         "operationId": "editar_api_v1_cursos__id__put",
@@ -204,12 +243,50 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Cuentas, cursos y documentos"
+        ],
+        "summary": "Borrar un curso con su material, recursos y descargas",
+        "operationId": "borrar_curso_api_v1_cursos__id__delete",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/documentos": {
       "get": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Documentos",
         "operationId": "documentos_api_v1_documentos_get",
@@ -231,7 +308,7 @@
       },
       "post": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Cargar",
         "operationId": "cargar_api_v1_documentos_post",
@@ -275,7 +352,7 @@
     "/api/v1/documentos/{id}/archivo": {
       "get": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Descargar",
         "operationId": "descargar_api_v1_documentos__id__archivo_get",
@@ -320,7 +397,7 @@
     "/api/v1/documentos/{id}": {
       "delete": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Borrar",
         "operationId": "borrar_api_v1_documentos__id__delete",
@@ -360,7 +437,7 @@
     "/api/v1/solicitudes": {
       "get": {
         "tags": [
-          "EP-002 Configuración conectada"
+          "Cuentas, cursos y documentos"
         ],
         "summary": "Historial",
         "operationId": "historial_api_v1_solicitudes_get",
@@ -381,12 +458,328 @@
         ]
       }
     },
+    "/api/v1/resumen": {
+      "get": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Recursos aprobados y por revisar de cada unidad del docente",
+        "operationId": "resumen_api_v1_resumen_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ]
+      }
+    },
+    "/api/v1/unidades/{unidad_id}/recursos": {
+      "get": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Recursos generados para la unidad, con su revisión",
+        "operationId": "recursos_api_v1_unidades__unidad_id__recursos_get",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Unidad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/unidades/{unidad_id}/recursos/{recurso_id}": {
+      "put": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Guardar la revisión de un recurso",
+        "operationId": "revisar_api_v1_unidades__unidad_id__recursos__recurso_id__put",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Unidad Id"
+            }
+          },
+          {
+            "name": "recurso_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recurso Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecursoRevisado"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Borrar un recurso",
+        "operationId": "borrar_api_v1_unidades__unidad_id__recursos__recurso_id__delete",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Unidad Id"
+            }
+          },
+          {
+            "name": "recurso_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recurso Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/unidades/{unidad_id}/descargas": {
+      "get": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Historial de descargas de la unidad",
+        "operationId": "descargas_api_v1_unidades__unidad_id__descargas_get",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Unidad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Registrar una descarga",
+        "operationId": "registrar_api_v1_unidades__unidad_id__descargas_post",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Unidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescargaEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Revisión y descargas"
+        ],
+        "summary": "Borrar el historial de descargas de la unidad",
+        "operationId": "borrar_historial_api_v1_unidades__unidad_id__descargas_delete",
+        "security": [
+          {
+            "SesionDocente": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Unidad Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documentos/desde-tema": {
       "post": {
         "tags": [
           "Ingesta y RAG"
         ],
-        "summary": "Buscar un tema en Wikipedia y guardarlo como material procesado",
+        "summary": "Buscar un tema en fuentes abiertas y guardarlo como material procesado",
         "operationId": "desde_tema_api_v1_documentos_desde_tema_post",
         "requestBody": {
           "content": {
@@ -957,6 +1350,39 @@
         ],
         "title": "DecisionRequest"
       },
+      "DescargaEntrada": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "moodle_xml",
+              "qti21",
+              "documento"
+            ],
+            "title": "Format"
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "resourceCount": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "Resourcecount"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "format",
+          "fileName",
+          "resourceCount"
+        ],
+        "title": "DescargaEntrada"
+      },
       "ExportacionRequest": {
         "properties": {
           "formato": {
@@ -1077,6 +1503,171 @@
           "password"
         ],
         "title": "Login"
+      },
+      "OpcionRevisada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Feedback",
+            "default": ""
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "aceptado",
+              "descartado"
+            ],
+            "title": "Decision"
+          },
+          "discardReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sin_sentido",
+                  "tambien_correcto",
+                  "duplicado",
+                  "fuera_de_unidad",
+                  "otro",
+                  "regenerado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discardreason"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "decision"
+        ],
+        "title": "OpcionRevisada"
+      },
+      "RecursoRevisado": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Body"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "aprobado",
+              "descartado"
+            ],
+            "title": "Status"
+          },
+          "discardReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sin_sentido",
+                  "tambien_correcto",
+                  "duplicado",
+                  "fuera_de_unidad",
+                  "otro",
+                  "regenerado"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discardreason"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited",
+            "default": false
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OpcionRevisada"
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "body",
+          "status"
+        ],
+        "title": "RecursoRevisado"
+      },
+      "Registro": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 8,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "Registro"
       },
       "ResultadoEntrada": {
         "properties": {

@@ -1,4 +1,4 @@
-"""API EP-002. Una cuenta de demostración; no sustituye HU-001 de autenticación."""
+"""API EP-002 y HU-001: cuentas de docente, sesiones, cursos y documentos."""
 import json
 from typing import Literal
 from urllib.parse import quote
@@ -15,6 +15,12 @@ class Login(Contrato):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=200)
     # La contraseña conserva espacios: pueden formar parte de ella.
+    model_config = ConfigDict(extra='forbid')
+
+class Registro(Contrato):
+    name: str = Field(min_length=2, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=200)
     model_config = ConfigDict(extra='forbid')
 
 class ResultadoEntrada(Contrato):
@@ -44,13 +50,15 @@ class ContextoDocumento(Contrato):
     usePermission: bool
 
 def crear_router_configuracion(servicio: ConfiguracionService):
-    router = APIRouter(prefix='/api/v1', tags=['EP-002 Configuración conectada'])
+    router = APIRouter(prefix='/api/v1', tags=['Cuentas, cursos y documentos'])
     def docente(authorization: str | None = Depends(obtener_autorizacion)):
         return servicio.autenticar(authorization)
+    @router.post('/cuentas', status_code=201, summary='Crear una cuenta de docente e iniciar sesión')
+    def registrar(req: Registro): return servicio.registrar_cuenta(req.name, req.email, req.password)
     @router.post('/sesiones')
     def login(req: Login): return servicio.login(req.email, req.password)
     @router.get('/sesiones/actual')
-    def actual(email=Depends(docente)): return {'email': email}
+    def actual(email=Depends(docente)): return servicio.perfil(email)
     @router.delete('/sesiones/actual', status_code=204)
     def logout(authorization: str | None = Depends(obtener_autorizacion)):
         servicio.logout(authorization)
@@ -63,6 +71,10 @@ def crear_router_configuracion(servicio: ConfiguracionService):
     @router.put('/cursos/{id}')
     def editar(id: str, req: CursoEntrada, email=Depends(docente)):
         return servicio.guardar_curso(email, req.model_dump(), id)
+    @router.delete('/cursos/{id}', status_code=204, summary='Borrar un curso con su material, recursos y descargas')
+    def borrar_curso(id: str, email=Depends(docente)):
+        servicio.borrar_curso(email, id)
+        return Response(status_code=204)
     @router.get('/documentos')
     def documentos(email=Depends(docente)): return servicio.listar_documentos(email)
     @router.post('/documentos', status_code=201)
