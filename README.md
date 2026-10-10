@@ -6,6 +6,8 @@ evidencia de origen** y exportación de lo aprobado a **Moodle (Moodle XML)** y 
 
 > **Estado actual:** El repositorio cuenta con el **frontend** interactivo, la base de datos local en **PostgreSQL 17 + pgvector**, y el **backend base** consolidado bajo Arquitectura Hexagonal con FastAPI y SQLAlchemy.
 
+Enlace: https://plataforma-5e-taller-integrador.vercel.app/
+
 ## Demo rápida
 
 Dos terminales desde la raíz del repositorio. El backend usa SQLite por defecto (no requiere Docker).
@@ -26,13 +28,6 @@ npm run dev
 Abre [http://localhost:5173](http://localhost:5173) e inicia sesión con `docente@5e.demo` / `Demo5E!2026` (cuenta pública de
 demostración). En **Modo de acceso** elige **Servidor de la plataforma (backend)** para guardar cursos, archivos e historial en
 el backend, o **Prototipo local** para usar solo el navegador (no necesita la terminal 1).
-
-### Versión publicada (Vercel)
-
-El frontend también se publica en Vercel para revisarlo sin instalar nada. Esa versión no tiene backend: solo ofrece el
-modo **Prototipo local** y guarda los datos en el navegador de quien la abre. La configuración está en
-[`frontend/vercel.json`](frontend/vercel.json) (compila con `VITE_SOLO_LOCAL=true` y redirige todas las rutas a
-`index.html`). En el proyecto de Vercel, **Root Directory** debe ser `frontend`. Cada push a `main` actualiza la publicación.
 
 ## Requisitos
 
